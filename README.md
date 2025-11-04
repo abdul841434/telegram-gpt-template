@@ -64,7 +64,7 @@ cp .env.example .env && nano .env
 python main.py
 ```
 
-📖 **[Подробное руководство →](docs/quickstart.md)** | **[Полная документация →](docs/deployment.md)**
+📖 **[Быстрый старт →](docs/quickstart.md)** | **[Деплой →](docs/deployment.md)** | **[CI/CD →](docs/ci-cd.md)**
 
 ## 📝 Команды бота
 
@@ -84,9 +84,13 @@ python main.py
 
 ```
 empathy-ai-bot/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml     # GitHub Actions CI/CD
 ├── docs/                   # Документация
 │   ├── quickstart.md      # Быстрый старт за 3 минуты
-│   └── deployment.md      # Полное руководство по развертыванию
+│   ├── deployment.md      # Полное руководство по развертыванию
+│   └── ci-cd.md          # Настройка автодеплоя
 ├── data/                   # База данных (создается автоматически)
 ├── main.py                 # Основная логика бота
 ├── openrouters.py          # Интеграция с OpenRouter API
@@ -178,6 +182,22 @@ docker-compose logs -f
 | Бот не останавливается | Используйте `./kill_bot.sh` |
 
 📖 **[Полное руководство по решению проблем →](docs/deployment.md#решение-проблем)**
+
+## 🚀 CI/CD и автоматический деплой
+
+Настроен автоматический деплой на Yandex Cloud через GitHub Actions.
+
+### Что происходит при push в main:
+
+1. ✅ Автоматическое тестирование
+2. 🏗️ Сборка Docker образа
+3. 📦 Загрузка в Container Registry
+4. 🚀 Деплой на сервер
+5. ✅ Проверка работоспособности
+
+**Время деплоя:** 3-5 минут
+
+📖 **[Настроить автоматический деплой →](docs/ci-cd.md)**
 
 ## 🤖 Демо-версия
 
