@@ -2,6 +2,7 @@
 Обработчики администраторских команд.
 """
 
+import contextlib
 import re
 
 from aiogram import types
@@ -26,13 +27,13 @@ async def cmd_dispatch_input_text(message: types.Message, state: FSMContext):
     try:
         await bot.send_message(int(user_id), text=message.text)
     except Exception as e:
-        await bot.send_message(
-            DEBUG_CHAT,
-            f"LLM{message.chat.id} - ошибка при отправке {e}. Вы в главном меню",
-        )
-        await message.answer(
-            f"LLM{message.chat.id} - ошибка при отправке {e}. Вы в главном меню"
-        )
+        error_msg = f"LLM{message.chat.id} - ошибка при отправке {e}. Вы в главном меню"
+        logger.error(error_msg, exc_info=True)
+
+        with contextlib.suppress(Exception):
+            await bot.send_message(DEBUG_CHAT, error_msg)
+
+        await message.answer(error_msg)
         await state.clear()
         return
 
@@ -73,14 +74,20 @@ async def cmd_dispatch_all_input_text(message: types.Message, state: FSMContext)
                 continue
 
         result_msg = f"Сообщение отправлено {success_dispatch} пользователям"
-        await bot.send_message(DEBUG_CHAT, result_msg)
+        logger.info(result_msg)
+
+        with contextlib.suppress(Exception):
+            await bot.send_message(DEBUG_CHAT, result_msg)
+
         await bot.send_message(message.chat.id, result_msg)
 
     except Exception as e:
-        error_msg = (
-            f"USER{message.chat.id} - ошибка при отправке {e}. Вы в главном меню"
-        )
-        await bot.send_message(DEBUG_CHAT, error_msg)
+        error_msg = f"USER{message.chat.id} - ошибка при отправке {e}. Вы в главном меню"
+        logger.error(error_msg, exc_info=True)
+
+        with contextlib.suppress(Exception):
+            await bot.send_message(DEBUG_CHAT, error_msg)
+
         await message.answer(error_msg)
         await state.clear()
         return
@@ -166,11 +173,13 @@ async def cmd_stats(message: types.Message):
         )
 
     except Exception as e:
-        await status_msg.edit_text(
-            f"❌ Ошибка при генерации статистики: {e}"
-        )
+        error_msg = f"❌ Ошибка при генерации статистики: {e}"
+        await status_msg.edit_text(error_msg)
         # Логируем ошибку
-        await bot.send_message(
-            DEBUG_CHAT,
-            f"Ошибка в cmd_stats: {e}"
-        )
+        logger.error(f"Ошибка в cmd_stats: {e}", exc_info=True)
+
+        # Пытаемся отправить в DEBUG чат (с обработкой ошибок)
+        try:
+            await bot.send_message(DEBUG_CHAT, f"Ошибка в cmd_stats: {e}")
+        except Exception as debug_error:
+            logger.warning(f"Не удалось отправить ошибку в DEBUG чат: {debug_error}")

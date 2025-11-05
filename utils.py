@@ -4,6 +4,8 @@
 
 import asyncio
 
+from aiogram.exceptions import TelegramMigrateToChat
+
 from bot_instance import bot
 from config import DEBUG_CHAT, logger
 
@@ -37,6 +39,32 @@ async def forward_to_debug(message_chat_id: int, message_id: int):
         await bot.forward_message(
             chat_id=DEBUG_CHAT, from_chat_id=message_chat_id, message_id=message_id
         )
+    except TelegramMigrateToChat as e:
+        # Чат был преобразован в супергруппу
+        new_chat_id = e.migrate_to_chat_id
+        logger.warning(
+            f"⚠️ DEBUG чат был преобразован в супергруппу!\n"
+            f"Старый ID: {DEBUG_CHAT}\n"
+            f"Новый ID: {new_chat_id}\n"
+            f"❗ Обновите переменную DEBUG_CHAT в .env или GitHub Secrets"
+        )
+        # Пытаемся отправить в новый чат
+        try:
+            await bot.send_message(new_chat_id, f"USER{message_chat_id}")
+            await bot.forward_message(
+                chat_id=new_chat_id, from_chat_id=message_chat_id, message_id=message_id
+            )
+            logger.info(f"✅ Сообщение успешно отправлено в новый чат {new_chat_id}")
+        except Exception as e2:
+            logger.error(
+                f"❌ Не удалось отправить сообщение в новый чат {new_chat_id}: {e2}"
+            )
     except Exception as e:
-        # Логируем ошибку, но не прерываем обработку
-        logger.error(f"Ошибка при пересылке в DEBUG чат: {e}", exc_info=True)
+        # Любые другие ошибки (бот не добавлен в чат, чат не существует и т.д.)
+        logger.warning(
+            f"⚠️ Не удалось переслать сообщение в DEBUG чат (ID: {DEBUG_CHAT}): {e}\n"
+            f"Проверьте:\n"
+            f"1. Бот добавлен в DEBUG чат\n"
+            f"2. DEBUG_CHAT ID корректный\n"
+            f"3. У бота есть права на отправку сообщений"
+        )

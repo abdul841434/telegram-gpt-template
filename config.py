@@ -2,6 +2,7 @@
 Конфигурация приложения и настройка логирования.
 """
 
+import contextlib
 import json
 import logging
 import logging.handlers
@@ -58,6 +59,7 @@ class TelegramLogsHandler(logging.Handler):
         super().__init__()
         self.bot = bot
         self.chat_id = chat_id
+        self._migration_warned = False  # Флаг для однократного предупреждения
 
     def emit(self, record):
         """Отправка лог-записи в Telegram."""
@@ -66,9 +68,30 @@ class TelegramLogsHandler(logging.Handler):
 
             log_entry = self.format(record)
             # Отправляем асинхронно
-            asyncio.create_task(self.bot.send_message(self.chat_id, log_entry))
+            asyncio.create_task(self._send_log(log_entry))
         except Exception:
             self.handleError(record)
+
+    async def _send_log(self, log_entry):
+        """Асинхронная отправка лога с обработкой ошибок."""
+        try:
+            from aiogram.exceptions import TelegramMigrateToChat
+
+            await self.bot.send_message(self.chat_id, log_entry)
+        except TelegramMigrateToChat as e:
+            # Чат мигрирован, пробуем отправить в новый
+            if not self._migration_warned:
+                self._migration_warned = True
+                # Предупреждение будет записано в файловый лог
+                print(
+                    f"⚠️ DEBUG чат мигрирован: старый={self.chat_id}, "
+                    f"новый={e.migrate_to_chat_id}"
+                )
+            with contextlib.suppress(Exception):
+                await self.bot.send_message(e.migrate_to_chat_id, log_entry)
+        except Exception:
+            # Игнорируем все остальные ошибки отправки в Telegram
+            pass
 
 
 def setup_logger():
@@ -105,6 +128,15 @@ def setup_logger():
 
     # File handler
     if file_level < 100:  # Если не DISABLED
+        # Создаем директорию для логов если её нет
+        log_dir = os.path.dirname("debug.log")
+        if log_dir and not os.path.exists(log_dir):
+            os.makedirs(log_dir, exist_ok=True)
+
+        # Создаем файл лога если его нет
+        if not os.path.exists("debug.log"):
+            open("debug.log", "a", encoding="utf8").close()
+
         fh = logging.handlers.RotatingFileHandler(
             "debug.log", maxBytes=1024 * 1024, backupCount=5, encoding="utf8"
         )
