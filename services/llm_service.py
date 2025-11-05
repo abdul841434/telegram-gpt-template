@@ -18,7 +18,7 @@ from config import (
 )
 from database import User
 import database
-from llm_client import send_request_to_openrouter
+from services.llm_client import send_request_to_openrouter
 
 
 async def process_user_message(chat_id: int, message_text: str) -> str | None:

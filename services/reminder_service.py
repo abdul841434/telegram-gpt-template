@@ -22,7 +22,7 @@ from config import (
 )
 from database import User
 import database
-from llm_client import send_request_to_openrouter
+from services.llm_client import send_request_to_openrouter
 from utils import forward_to_debug
 
 

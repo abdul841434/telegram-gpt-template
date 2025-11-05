@@ -90,7 +90,6 @@ python main.py
 - **`config.py`** — конфигурация, загрузка переменных окружения, настройка логирования
 - **`bot_instance.py`** — инициализация бота и диспетчера
 - **`database.py`** — модели данных и работа с БД
-- **`llm_client.py`** — клиент для работы с OpenRouter API
 
 ### Вспомогательные модули:
 
@@ -106,6 +105,7 @@ python main.py
 
 ### Сервисы (services/):
 
+- **`llm_client.py`** — клиент для работы с OpenRouter API
 - **`llm_service.py`** — логика взаимодействия с LLM, обработка запросов
 - **`reminder_service.py`** — логика напоминаний, фоновая задача
 
@@ -130,6 +130,7 @@ empathy-ai-bot/
 │   └── message_handlers.py    # Обработка текстовых сообщений
 ├── services/                   # Бизнес-логика
 │   ├── __init__.py
+│   ├── llm_client.py          # Клиент OpenRouter API
 │   ├── llm_service.py         # Работа с LLM
 │   └── reminder_service.py    # Логика напоминаний
 ├── data/                       # База данных (создается автоматически)
@@ -139,7 +140,6 @@ empathy-ai-bot/
 ├── filters.py                  # Пользовательские фильтры
 ├── states.py                   # FSM состояния
 ├── utils.py                    # Вспомогательные функции
-├── llm_client.py               # Клиент OpenRouter API
 ├── database.py                 # Работа с базой данных
 ├── requirements.txt           # Зависимости Python
 ├── Dockerfile                 # Docker образ

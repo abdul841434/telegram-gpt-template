@@ -23,7 +23,6 @@ COPY bot_instance.py .
 COPY filters.py .
 COPY states.py .
 COPY utils.py .
-COPY llm_client.py .
 COPY database.py .
 COPY handlers/ ./handlers/
 COPY services/ ./services/

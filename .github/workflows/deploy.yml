@@ -28,7 +28,7 @@ jobs:
     
     - name: Check Python syntax
       run: |
-        python -m py_compile main.py config.py bot_instance.py filters.py states.py utils.py llm_client.py database.py
+        python -m py_compile main.py config.py bot_instance.py filters.py states.py utils.py database.py
         python -m py_compile handlers/*.py
         python -m py_compile services/*.py
     
