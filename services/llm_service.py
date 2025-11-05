@@ -62,7 +62,7 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
     await user.update_prompt("user", message_text)
 
     # Подготавливаем промпт для запроса (только последние MAX_CONTEXT сообщений)
-    prompt_for_request = user.get_context_for_llm().copy()
+    prompt_for_request = (await user.get_context_for_llm()).copy()
     current_date = datetime.now(timezone(timedelta(hours=3))).strftime(
         "%Y-%m-%d %H:%M:%S"
     )

@@ -37,17 +37,8 @@ async def send_reminder_to_user(user_id: int):
     user = User(user_id)
     await user.get_from_db()
 
-    # Очищаем дубликаты ассистента в истории
-    if (
-        user.prompt
-        and len(user.prompt) >= 2
-        and user.prompt[-2]["role"] == "assistant"
-        and user.prompt[-1]["role"] == "assistant"
-    ):
-        user.prompt.pop()
-
     # Подготавливаем промпт для напоминания (только последние MAX_CONTEXT сообщений)
-    prompt_for_request = user.get_context_for_llm().copy()
+    prompt_for_request = (await user.get_context_for_llm()).copy()
     current_date = datetime.now(timezone(timedelta(hours=3))).strftime(
         "%Y-%m-%d %H:%M:%S"
     )

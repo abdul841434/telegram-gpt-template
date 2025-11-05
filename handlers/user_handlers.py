@@ -69,14 +69,17 @@ async def cmd_help(message: types.Message):
 
 @dp.message(Command("forget"))
 async def cmd_forget(message: types.Message):
-    """Команда /forget - сброс истории диалога."""
+    """
+    Команда /forget - сброс контекста диалога.
+    Сообщения сохраняются в БД для статистики, но не передаются в LLM.
+    """
     sent_msg = await message.answer(
         MESSAGES["msg_forget"], reply_markup=ReplyKeyboardRemove()
     )
     user = User(message.chat.id)
     await user.get_from_db()
     user.remind_of_yourself = "0"
-    user.prompt = []
+    user.active_messages_count = 0  # Не передавать сообщения в контекст
     await user.update_in_db()
 
     await forward_to_debug(message.chat.id, message.message_id)
