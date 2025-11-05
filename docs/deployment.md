@@ -208,6 +208,10 @@ tail -f debug.log
 
 # Docker Compose
 docker-compose logs -f
+
+# Docker (по имени контейнера)
+docker logs empathy-ai-bot --tail=100
+docker logs -f empathy-ai-bot  # в реальном времени
 ```
 
 ---
@@ -273,10 +277,25 @@ docker-compose up -d
 
 ### Контейнер постоянно перезапускается
 
+Проверьте статус контейнера:
+
+```bash
+docker ps
+```
+
+Если видите `Restarting (1)`, значит приложение падает при запуске.
+
 Проверьте логи - там будет причина:
 
 ```bash
+# Через docker-compose
 docker-compose logs
+
+# Или напрямую по имени контейнера
+docker logs empathy-ai-bot --tail=100
+
+# В реальном времени
+docker logs -f empathy-ai-bot
 ```
 
 Чаще всего проблема в неправильных токенах в `.env` файле.

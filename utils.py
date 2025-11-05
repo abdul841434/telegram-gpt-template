@@ -3,9 +3,10 @@
 """
 
 import asyncio
+import contextlib
 
 from bot_instance import bot
-from config import DEBUG, DEBUG_CHAT
+from config import DEBUG_CHAT
 
 
 async def keep_typing(chat_id: int, duration: int = 30):
@@ -24,13 +25,14 @@ async def keep_typing(chat_id: int, duration: int = 30):
 
 async def forward_to_debug(message_chat_id: int, message_id: int):
     """
-    Пересылает сообщение в отладочный чат, если включен режим отладки.
+    Пересылает сообщение в отладочный чат.
 
     Args:
         message_chat_id: ID чата с сообщением
         message_id: ID сообщения
     """
-    if DEBUG:
+    # Игнорируем ошибки пересылки (например, если бот заблокирован в DEBUG_CHAT)
+    with contextlib.suppress(Exception):
         await bot.forward_message(
             chat_id=DEBUG_CHAT, from_chat_id=message_chat_id, message_id=message_id
         )

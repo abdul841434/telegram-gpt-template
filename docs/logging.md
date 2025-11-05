@@ -211,14 +211,18 @@ grep -c "ERROR" debug.log
 
 ### Docker logs
 ```bash
-# Просмотр startup сообщений и ошибок
+# Через docker-compose
 docker-compose logs
+docker-compose logs -f  # в реальном времени
+docker-compose logs --tail=100  # последние 100 строк
 
-# В реальном времени
-docker-compose logs -f
+# Или напрямую по имени контейнера
+docker logs empathy-ai-bot
+docker logs -f empathy-ai-bot  # в реальном времени
+docker logs empathy-ai-bot --tail=100  # последние 100 строк
 
-# Последние 100 строк
-docker-compose logs --tail=100
+# Проверить статус контейнера
+docker ps
 ```
 
 ## Устранение неполадок
