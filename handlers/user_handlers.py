@@ -2,21 +2,16 @@
 Обработчики пользовательских команд.
 """
 
-from aiogram import F, types
+from aiogram import types
 from aiogram.filters.command import Command
 from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from bot_instance import dp
-from config import DEBUG_CHAT, MESSAGES, logger
+from config import MESSAGES, logger
 from database import User
 from filters import OldMessage, UserNotInDB
 from utils import forward_to_debug
-
-
-@dp.message(F.chat.id == DEBUG_CHAT)
-async def test(message: types.Message):
-    """Игнорирует сообщения в отладочном чате."""
 
 
 @dp.message(OldMessage())
