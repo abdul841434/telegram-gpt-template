@@ -1,0 +1,21 @@
+services:
+  empathy-bot:
+    image: cr.yandex/${YC_REGISTRY_ID}/empathy-bot:latest
+    container_name: empathy-ai-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Монтируем директорию для сохранения базы данных и логов
+      - ./data:/data
+      - ./logs:/app/logs
+    environment:
+      - DATABASE_NAME=/data/users.db
+    # Healthcheck
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python.*main.py' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+

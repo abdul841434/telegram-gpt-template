@@ -81,23 +81,32 @@ jobs:
           username: ${{ secrets.YC_INSTANCE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /opt/empathy-bot
-            
-            # Останавливаем контейнер
-            docker-compose down
+            # Останавливаем и удаляем старый контейнер
+            docker stop empathy-ai-bot 2>/dev/null || true
+            docker rm empathy-ai-bot 2>/dev/null || true
             
             # Обновляем образ
             docker pull ${{ env.REGISTRY }}/${{ secrets.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:latest
             
-            # Запускаем контейнер (миграции применятся автоматически при старте)
-            docker-compose up -d
+            # Загружаем переменные окружения (должен быть файл .env на сервере)
+            cd /opt/empathy-bot
+            
+            # Запускаем новый контейнер (миграции применятся автоматически при старте)
+            docker run -d \
+              --name empathy-ai-bot \
+              --restart unless-stopped \
+              --env-file .env \
+              -e DATABASE_NAME=/data/users.db \
+              -v /opt/empathy-bot/data:/data \
+              -v /opt/empathy-bot/logs:/app/logs \
+              ${{ env.REGISTRY }}/${{ secrets.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:latest
             
             # Ждем запуска
             sleep 5
             
             # Проверяем статус
-            docker-compose ps
-            docker-compose logs --tail=50
+            docker ps --filter name=empathy-ai-bot
+            docker logs empathy-ai-bot --tail=50
       
       - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
@@ -106,14 +115,13 @@ jobs:
           username: ${{ secrets.YC_INSTANCE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /opt/empathy-bot
-            
             # Проверяем, что контейнер работает
-            if docker-compose ps | grep -q "Up"; then
+            if docker ps --filter name=empathy-ai-bot --filter status=running | grep -q empathy-ai-bot; then
               echo "✅ Деплой успешен!"
+              docker logs empathy-ai-bot --tail=20
               exit 0
             else
               echo "❌ Контейнер не запустился"
-              docker-compose logs --tail=100
+              docker logs empathy-ai-bot --tail=100
               exit 1
             fi

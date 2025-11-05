@@ -27,6 +27,7 @@ COPY database.py .
 COPY handlers/ ./handlers/
 COPY services/ ./services/
 COPY config/ ./config/
+COPY migrations/ ./migrations/
 
 # Создаем директорию для базы данных и логов
 RUN mkdir -p /data
