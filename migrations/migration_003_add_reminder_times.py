@@ -33,14 +33,14 @@ async def migrate(db: aiosqlite.Connection):
             ALTER TABLE {TABLE_NAME}
             ADD COLUMN reminder_times TEXT DEFAULT '{default_times}'
         """)
-        
+
         # Обновляем существующие записи
         await db.execute(f"""
             UPDATE {TABLE_NAME}
             SET reminder_times = '{default_times}'
             WHERE reminder_times IS NULL
         """)
-        
+
         await db.commit()
         print("  ✅ Поле reminder_times добавлено (по умолчанию ['19:15'])")
     else:

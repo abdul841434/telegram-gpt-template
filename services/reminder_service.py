@@ -13,12 +13,8 @@ import database
 from bot_instance import bot
 from config import (
     DEFAULT_PROMPT,
-    DELAYED_REMINDERS_HOURS,
-    DELAYED_REMINDERS_MINUTES,
-    FROM_TIME,
     REMINDER_PROMPT,
     TIMEZONE_OFFSET,
-    TO_TIME,
     logger,
 )
 from database import User

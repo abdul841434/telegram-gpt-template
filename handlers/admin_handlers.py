@@ -201,11 +201,11 @@ async def cmd_set_reminder_times_input(message: types.Message, state: FSMContext
         # Парсим введенные времена (формат: HH:MM HH:MM HH:MM)
         import re
         times_text = message.text.strip()
-        
+
         # Извлекаем все времена в формате HH:MM
         time_pattern = r'\b([0-2]?[0-9]):([0-5][0-9])\b'
         matches = re.findall(time_pattern, times_text)
-        
+
         if not matches:
             await message.answer(
                 "❌ Не найдено корректных времен. Введите время в формате HH:MM (например: 09:00 14:30 19:15)"
@@ -217,11 +217,11 @@ async def cmd_set_reminder_times_input(message: types.Message, state: FSMContext
         for hour, minute in matches:
             hour_int = int(hour)
             minute_int = int(minute)
-            
+
             if not (0 <= hour_int <= 23 and 0 <= minute_int <= 59):
                 await message.answer(f"❌ Некорректное время: {hour}:{minute}")
                 return
-            
+
             # Форматируем время с ведущими нулями
             time_str = f"{hour_int:02d}:{minute_int:02d}"
             if time_str not in reminder_times:
@@ -235,10 +235,10 @@ async def cmd_set_reminder_times_input(message: types.Message, state: FSMContext
 
         times_display = ", ".join(reminder_times)
         success_msg = f"✅ Времена напоминаний для USER{user_id} обновлены: {times_display}"
-        
+
         await message.answer(success_msg)
         logger.info(success_msg)
-        
+
         with contextlib.suppress(Exception):
             await bot.send_message(DEBUG_CHAT, success_msg)
 

@@ -293,7 +293,7 @@ async def get_past_dates():
     """
     Получает список пользователей, которым нужно отправить напоминание.
     Проверяет, наступило ли время из списка reminder_times.
-    
+
     Returns:
         Список user_id пользователей, которым нужно отправить напоминание
     """
@@ -304,7 +304,6 @@ async def get_past_dates():
 
         # Получаем текущее время в МСК (UTC+3)
         now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
-        current_time_str = now_msk.strftime("%H:%M")
         current_hour = now_msk.hour
         current_minute = now_msk.minute
 
@@ -312,41 +311,41 @@ async def get_past_dates():
 
         async with db.execute(query) as cursor:
             results = await cursor.fetchall()
-        
+
         for row in results:
             user_id = row[0]
             reminder_times_json = row[1]
             remind_of_yourself = row[2]
-            
+
             # Пропускаем пользователей с отключенными напоминаниями
             if remind_of_yourself == "0":
                 continue
-            
+
             # Парсим список времен напоминаний
             try:
                 reminder_times = json.loads(reminder_times_json) if reminder_times_json else ["19:15"]
             except json.JSONDecodeError:
                 reminder_times = ["19:15"]
-            
+
             # Проверяем, наступило ли одно из времен напоминаний
             for reminder_time in reminder_times:
                 try:
                     reminder_hour, reminder_minute = map(int, reminder_time.split(":"))
-                    
+
                     # Проверяем, что текущее время находится в пределах 15 минут от времени напоминания
                     # (так как проверка происходит каждые 15 минут)
                     time_diff = (current_hour * 60 + current_minute) - (reminder_hour * 60 + reminder_minute)
-                    
+
                     # Если время напоминания наступило (в пределах последних 15 минут)
                     if 0 <= time_diff < 15:
                         # Проверяем, что мы еще не отправляли напоминание в этот период
                         last_reminder = datetime.strptime(remind_of_yourself, "%Y-%m-%d %H:%M:%S")
-                        
+
                         # Если последнее напоминание было более часа назад - отправляем
                         if (now_msk.replace(tzinfo=None) - last_reminder).total_seconds() > 3600:
                             past_user_ids.append(user_id)
                             break  # Нашли подходящее время, выходим из цикла
-                        
+
                 except (ValueError, AttributeError):
                     continue
 
