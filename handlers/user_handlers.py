@@ -62,10 +62,10 @@ async def cmd_help(message: types.Message):
     """Команда /help - справка (обычная или админская)."""
     # Проверяем, является ли пользователь администратором
     is_admin = message.chat.id == DEBUG_CHAT or message.chat.id in ADMIN_LIST
-    
+
     # Выбираем соответствующее сообщение
     help_message = MESSAGES["msg_help_admin"] if is_admin else MESSAGES["msg_help"]
-    
+
     sent_msg = await message.answer(
         help_message, reply_markup=ReplyKeyboardRemove()
     )
