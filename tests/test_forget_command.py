@@ -54,15 +54,18 @@ async def test_db():
 
         await db.commit()
 
-    # Патчим DATABASE_NAME
+    # Патчим DATABASE_NAME и TABLE_NAME
     import database
     original_db = database.DATABASE_NAME
+    original_table = database.TABLE_NAME
     database.DATABASE_NAME = test_db_name
+    database.TABLE_NAME = "users"  # Убеждаемся что имя таблицы установлено
 
     yield test_db_name
 
     # Восстанавливаем и очищаем
     database.DATABASE_NAME = original_db
+    database.TABLE_NAME = original_table
     if os.path.exists(test_db_name):
         os.remove(test_db_name)
 
