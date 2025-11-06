@@ -45,8 +45,8 @@ async def send_reminder_to_user(user_id: int):
     user = User(user_id)
     await user.get_from_db()
 
-    # Подготавливаем промпт для напоминания (только последние MAX_CONTEXT сообщений)
-    prompt_for_request = (await user.get_context_for_llm()).copy()
+    # Подготавливаем контекст (только последние MAX_CONTEXT сообщений)
+    context_messages = await user.get_context_for_llm()
 
     # Получаем текущую дату и день недели
     now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
@@ -73,13 +73,18 @@ async def send_reminder_to_user(user_id: int):
     default_content = DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date)
     default_content = default_content.replace("{USERNAME}", username_replacement)
 
-    prompt_for_request.append(
-        {
-            "role": "system",
-            "content": reminder_content,
-        }
-    )
-    prompt_for_request.insert(0, {"role": "system", "content": default_content})
+    # Формируем финальный промпт: системные промпты ПЕРВЫМИ, затем история сообщений
+    prompt_for_request = [
+        {"role": "system", "content": default_content},
+        {"role": "system", "content": reminder_content},
+    ]
+
+    # Добавляем сообщения из истории (убираем timestamp, он не нужен для LLM API)
+    for msg in context_messages:
+        prompt_for_request.append({
+            "role": msg["role"],
+            "content": msg["content"]
+        })
 
     # Логируем промпт перед отправкой
     log_prompt(user_id, prompt_for_request, f"REMINDER_{reminder_type.upper()}")

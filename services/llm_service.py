@@ -62,12 +62,12 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
     await user.update_prompt("user", message_text)
 
     # Подготавливаем промпт для запроса (только последние MAX_CONTEXT сообщений)
-    prompt_for_request = (await user.get_context_for_llm()).copy()
+    context_messages = await user.get_context_for_llm()
+
+    # Формируем системный промпт с подстановкой данных
     current_date = datetime.now(timezone(timedelta(hours=3))).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
-
-    # Формируем системный промпт с подстановкой данных
     system_content = DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date)
 
     # Добавляем имя пользователя если оно есть и не "Not_of_registration"
@@ -77,12 +77,20 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
     else:
         system_content = system_content.replace("{USERNAME}", "")
 
-    prompt_for_request.append(
+    # Формируем финальный промпт: системный промпт ПЕРВЫМ, затем история сообщений
+    prompt_for_request = [
         {
             "role": "system",
             "content": system_content,
         }
-    )
+    ]
+
+    # Добавляем сообщения из истории (убираем timestamp, он не нужен для LLM API)
+    for msg in context_messages:
+        prompt_for_request.append({
+            "role": msg["role"],
+            "content": msg["content"]
+        })
 
     # Логируем промпт перед отправкой
     log_prompt(chat_id, prompt_for_request, "MESSAGE")
