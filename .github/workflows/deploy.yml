@@ -82,7 +82,7 @@ jobs:
         env:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
           LLM_TOKEN: ${{ secrets.LLM_TOKEN }}
-          DEBUG_CHAT: ${{ secrets.DEBUG_CHAT }}
+          ADMIN_CHAT: ${{ secrets.ADMIN_CHAT }}
           MODEL: ${{ secrets.MODEL || 'google/gemini-2.0-flash-exp:free' }}
           DEBUG: ${{ secrets.DEBUG || '0' }}
           TABLE_NAME: ${{ secrets.TABLE_NAME || 'users' }}
@@ -102,7 +102,7 @@ jobs:
           host: ${{ secrets.YC_INSTANCE_IP }}
           username: ${{ secrets.YC_INSTANCE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: TG_TOKEN,LLM_TOKEN,DEBUG_CHAT,MODEL,DEBUG,TABLE_NAME,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,ADMIN_LIST,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,NEW_IMAGE,BACKUP_IMAGE
+          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,TABLE_NAME,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,ADMIN_LIST,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,NEW_IMAGE,BACKUP_IMAGE
           script: |
             set -e  # Остановка при ошибке
             
@@ -142,7 +142,7 @@ jobs:
                 --restart unless-stopped \
                 -e TG_TOKEN="$TG_TOKEN" \
                 -e LLM_TOKEN="$LLM_TOKEN" \
-                -e DEBUG_CHAT="$DEBUG_CHAT" \
+                -e ADMIN_CHAT="$ADMIN_CHAT" \
                 -e MODEL="$MODEL" \
                 -e DEBUG="$DEBUG" \
                 -e DATABASE_NAME=/data/users.db \
