@@ -86,11 +86,11 @@ async def cmd_forget(message: types.Message):
     await forward_to_debug(message.chat.id, sent_msg.message_id)
 
 
-@dp.message(Command("reminder"))
-async def cmd_reminder(message: types.Message):
-    """Команда /reminder - отключение напоминаний."""
+@dp.message(Command("mute"))
+async def cmd_mute(message: types.Message):
+    """Команда /mute - отключение напоминаний."""
     sent_msg = await message.answer(
-        MESSAGES["msg_reminder"], reply_markup=ReplyKeyboardRemove()
+        MESSAGES["msg_mute"], reply_markup=ReplyKeyboardRemove()
     )
     user = User(message.chat.id)
     await user.get_from_db()
