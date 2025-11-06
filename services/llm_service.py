@@ -58,10 +58,8 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
     user = User(chat_id)
     await user.get_from_db()
 
-    # Добавляем сообщение пользователя в историю
-    await user.update_prompt("user", message_text)
-
-    # Подготавливаем промпт для запроса (только последние MAX_CONTEXT сообщений)
+    # ВАЖНО: Получаем контекст ДО сохранения текущего сообщения
+    # Чтобы текущее сообщение не попало в контекст дважды
     context_messages = await user.get_context_for_llm()
 
     # Формируем системный промпт с подстановкой данных
@@ -92,6 +90,12 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
             "content": msg["content"]
         })
 
+    # Добавляем текущее сообщение пользователя в промпт
+    prompt_for_request.append({
+        "role": "user",
+        "content": message_text
+    })
+
     # Логируем промпт перед отправкой
     log_prompt(chat_id, prompt_for_request, "MESSAGE")
 
@@ -106,7 +110,8 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
         logger.error(f"LLM{chat_id} - пустой ответ от LLM")
         return None
 
-    # Сохраняем ответ в историю
+    # Сохраняем сообщение пользователя и ответ в историю
+    await user.update_prompt("user", message_text)
     await user.update_prompt("assistant", llm_msg)
     logger.debug(f"LLM_RAWOUTPUT{chat_id}:{llm_msg}")
 

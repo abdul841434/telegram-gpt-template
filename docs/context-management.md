@@ -13,20 +13,23 @@
    - При следующем запросе в LLM передается только системный промпт (без истории)
 
 2. **После первого сообщения пользователя:**
-   - Сообщение сохраняется в БД
-   - LLM получает запрос БЕЗ контекста (так как `active_messages_count = 0`)
-   - Ответ LLM сохраняется в БД
+   - Получаем контекст из БД (пусто, так как `active_messages_count = 0`)
+   - Формируем промпт: системный промпт + текущее сообщение
+   - LLM получает запрос БЕЗ истории
+   - Сохраняем user message и assistant response в БД
    - `active_messages_count` увеличивается до `2`
 
 3. **После второго сообщения:**
-   - Сообщение сохраняется в БД
-   - LLM получает запрос С контекстом (последние 2 сообщения: предыдущая пара user-assistant)
-   - Ответ LLM сохраняется в БД
+   - Получаем контекст из БД (последние 2 сообщения: предыдущая пара user-assistant)
+   - Формируем промпт: системный промпт + контекст + текущее сообщение
+   - LLM получает запрос С контекстом
+   - Сохраняем user message и assistant response в БД
    - `active_messages_count` увеличивается до `4`
 
 4. **И так далее:**
    - С каждой парой сообщений (user + assistant) счетчик увеличивается на 2
-   - В контекст LLM попадают только последние `active_messages_count` сообщений
+   - В контекст LLM попадают только последние `active_messages_count` сообщений из БД
+   - Текущее сообщение добавляется отдельно (не из БД)
    - Максимальное количество ограничено `MAX_CONTEXT` (из .env)
 
 ### Поле `active_messages_count`
@@ -72,15 +75,31 @@ User: выполняет /forget
 
 ### Код
 
-Логика увеличения счетчика находится в `services/llm_service.py`:
+**Порядок операций в `services/llm_service.py`:**
 
 ```python
-# Увеличиваем счетчик активных сообщений (если он используется)
-# +2 потому что добавили пару: user message + assistant message
+# 1. Получаем контекст ДО сохранения текущего сообщения
+context_messages = await user.get_context_for_llm()
+
+# 2. Формируем промпт: системный промпт + контекст + текущее сообщение
+prompt_for_request = [{"role": "system", "content": system_content}]
+for msg in context_messages:
+    prompt_for_request.append({"role": msg["role"], "content": msg["content"]})
+prompt_for_request.append({"role": "user", "content": message_text})
+
+# 3. Отправляем в LLM
+llm_msg = await send_request_to_openrouter(prompt_for_request)
+
+# 4. Сохраняем оба сообщения в БД
+await user.update_prompt("user", message_text)
+await user.update_prompt("assistant", llm_msg)
+
+# 5. Увеличиваем счетчик активных сообщений
 if user.active_messages_count is not None:
     user.active_messages_count += 2
-    logger.debug(f"USER{chat_id} active_messages_count увеличен до {user.active_messages_count}")
 ```
+
+**Важно:** Контекст получается ДО сохранения текущего сообщения, чтобы текущее сообщение не попало в контекст дважды.
 
 Логика получения контекста находится в `database.py`:
 
