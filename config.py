@@ -46,7 +46,7 @@ ADMIN_LIST = list(map(int, ADMIN_LIST_STR.split(","))) if ADMIN_LIST_STR else se
 with open("config/prompts.json", encoding="utf-8") as f:
     PROMPTS = json.load(f)
     DEFAULT_PROMPT = PROMPTS["DEFAULT_PROMPT"]
-    REMINDER_PROMPT = PROMPTS["REMINDER_PROMPT"]
+    REMINDER_PROMPTS = PROMPTS["REMINDER_PROMPTS"]  # Словарь с разными типами промптов
 
 with open("config/messages.json", encoding="utf-8") as f:
     MESSAGES = json.load(f)

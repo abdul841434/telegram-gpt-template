@@ -3,6 +3,7 @@
 """
 
 import asyncio
+import random
 from datetime import datetime, timedelta, timezone
 
 import telegramify_markdown
@@ -13,7 +14,7 @@ import database
 from bot_instance import bot
 from config import (
     DEFAULT_PROMPT,
-    REMINDER_PROMPT,
+    REMINDER_PROMPTS,
     TIMEZONE_OFFSET,
     logger,
 )
@@ -21,6 +22,17 @@ from database import User
 from services.llm_client import send_request_to_openrouter
 from services.llm_service import log_prompt
 from utils import forward_to_debug
+
+# Названия дней недели на русском
+WEEKDAY_NAMES = {
+    0: "Понедельник",
+    1: "Вторник",
+    2: "Среда",
+    3: "Четверг",
+    4: "Пятница",
+    5: "Суббота",
+    6: "Воскресенье",
+}
 
 
 async def send_reminder_to_user(user_id: int):
@@ -35,17 +47,26 @@ async def send_reminder_to_user(user_id: int):
 
     # Подготавливаем промпт для напоминания (только последние MAX_CONTEXT сообщений)
     prompt_for_request = (await user.get_context_for_llm()).copy()
-    current_date = datetime.now(timezone(timedelta(hours=3))).strftime(
-        "%Y-%m-%d %H:%M:%S"
-    )
+
+    # Получаем текущую дату и день недели
+    now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
+    current_date = now_msk.strftime("%Y-%m-%d %H:%M:%S")
+    weekday = WEEKDAY_NAMES[now_msk.weekday()]
 
     # Формируем информацию об имени пользователя если она доступна
     username_replacement = ""
     if user.name and user.name != "Not_of_registration":
-        username_replacement = f"6. Имя пользователя: {user.name}"
+        username_replacement = f"Имя пользователя: {user.name}"
 
-    # Заменяем плейсхолдеры в REMINDER_PROMPT
-    reminder_content = REMINDER_PROMPT.replace("{CURRENTDATE}", current_date)
+    # Выбираем случайный тип напоминания
+    reminder_type = random.choice(list(REMINDER_PROMPTS.keys()))
+    reminder_prompt = REMINDER_PROMPTS[reminder_type]
+
+    logger.debug(f"USER{user_id} - Выбран тип напоминания: {reminder_type}")
+
+    # Заменяем плейсхолдеры в выбранном REMINDER_PROMPT
+    reminder_content = reminder_prompt.replace("{CURRENTDATE}", current_date)
+    reminder_content = reminder_content.replace("{WEEKDAY}", weekday)
     reminder_content = reminder_content.replace("{USERNAME}", username_replacement)
 
     # Заменяем плейсхолдеры в DEFAULT_PROMPT
@@ -61,7 +82,7 @@ async def send_reminder_to_user(user_id: int):
     prompt_for_request.insert(0, {"role": "system", "content": default_content})
 
     # Логируем промпт перед отправкой
-    log_prompt(user_id, prompt_for_request, "REMINDER")
+    log_prompt(user_id, prompt_for_request, f"REMINDER_{reminder_type.upper()}")
 
     # Запрашиваем ответ от LLM
     try:
