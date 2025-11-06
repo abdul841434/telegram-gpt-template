@@ -9,16 +9,16 @@ from dotenv import load_dotenv
 load_dotenv()
 LLM_TOKEN = os.environ.get("LLM_TOKEN")
 DEBUG = bool(os.environ.get("DEBUG"))
-ADMIN_CHAT = int(os.environ.get("ADMIN_CHAT"))
+ADMIN_CHAT = int(os.environ.get("ADMIN_CHAT") or "0")
 DATABASE_NAME = os.environ.get("DATABASE_NAME")
 TABLE_NAME = os.environ.get("TABLE_NAME")
-MAX_CONTEXT = int(os.environ.get("MAX_CONTEXT"))
+MAX_CONTEXT = int(os.environ.get("MAX_CONTEXT") or "10")
 MAX_STORAGE = int(os.environ.get("MAX_STORAGE", "100"))
-DELAYED_REMINDERS_HOURS = int(os.environ.get("DELAYED_REMINDERS_HOURS"))
-DELAYED_REMINDERS_MINUTES = int(os.environ.get("DELAYED_REMINDERS_MINUTES"))
-TIMEZONE_OFFSET = int(os.environ.get("TIMEZONE_OFFSET"))
-FROM_TIME = int(os.environ.get("FROM_TIME"))
-TO_TIME = int(os.environ.get("TO_TIME"))
+DELAYED_REMINDERS_HOURS = int(os.environ.get("DELAYED_REMINDERS_HOURS") or "2")
+DELAYED_REMINDERS_MINUTES = int(os.environ.get("DELAYED_REMINDERS_MINUTES") or "0")
+TIMEZONE_OFFSET = int(os.environ.get("TIMEZONE_OFFSET") or "3")
+FROM_TIME = int(os.environ.get("FROM_TIME") or "9")
+TO_TIME = int(os.environ.get("TO_TIME") or "23")
 
 
 class User:

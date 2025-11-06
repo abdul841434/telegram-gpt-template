@@ -16,7 +16,7 @@ load_dotenv()
 
 # Telegram конфигурация
 TG_TOKEN = os.environ.get("TG_TOKEN")
-ADMIN_CHAT = int(os.environ.get("ADMIN_CHAT"))
+ADMIN_CHAT = int(os.environ.get("ADMIN_CHAT") or "0")
 
 # Кастомный уровень логирования FULL (ниже DEBUG)
 FULL_LEVEL = 5
@@ -29,15 +29,15 @@ VISION_MODEL = os.environ.get("VISION_MODEL", "google/gemini-2.0-flash-001")
 # База данных
 DATABASE_NAME = os.environ.get("DATABASE_NAME")
 TABLE_NAME = os.environ.get("TABLE_NAME")
-MAX_CONTEXT = int(os.environ.get("MAX_CONTEXT"))
+MAX_CONTEXT = int(os.environ.get("MAX_CONTEXT") or "10")
 MAX_STORAGE = int(os.environ.get("MAX_STORAGE", "100"))  # Количество сообщений в БД
 
 # Напоминания
-DELAYED_REMINDERS_HOURS = int(os.environ.get("DELAYED_REMINDERS_HOURS"))
-DELAYED_REMINDERS_MINUTES = int(os.environ.get("DELAYED_REMINDERS_MINUTES"))
-TIMEZONE_OFFSET = int(os.environ.get("TIMEZONE_OFFSET"))
-FROM_TIME = int(os.environ.get("FROM_TIME"))
-TO_TIME = int(os.environ.get("TO_TIME"))
+DELAYED_REMINDERS_HOURS = int(os.environ.get("DELAYED_REMINDERS_HOURS") or "2")
+DELAYED_REMINDERS_MINUTES = int(os.environ.get("DELAYED_REMINDERS_MINUTES") or "0")
+TIMEZONE_OFFSET = int(os.environ.get("TIMEZONE_OFFSET") or "3")
+FROM_TIME = int(os.environ.get("FROM_TIME") or "9")
+TO_TIME = int(os.environ.get("TO_TIME") or "23")
 
 
 # Загрузка промптов и сообщений
