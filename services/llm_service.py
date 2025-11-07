@@ -7,15 +7,9 @@ from datetime import datetime, timedelta, timezone
 
 import telegramify_markdown
 
-import database
 from config import (
     DEFAULT_PROMPT,
-    DELAYED_REMINDERS_HOURS,
-    DELAYED_REMINDERS_MINUTES,
-    FROM_TIME,
     FULL_LEVEL,
-    TIMEZONE_OFFSET,
-    TO_TIME,
     logger,
 )
 from database import User
@@ -128,14 +122,7 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
         user.active_messages_count += 2
         logger.debug(f"USER{chat_id} active_messages_count увеличен до {user.active_messages_count}")
 
-    # Обновляем время следующего напоминания
-    user.remind_of_yourself = await database.time_after(
-        DELAYED_REMINDERS_HOURS,
-        DELAYED_REMINDERS_MINUTES,
-        TIMEZONE_OFFSET,
-        FROM_TIME,
-        TO_TIME,
-    )
+    # remind_of_yourself обновляется только при отправке напоминания (в reminder_service.py)
     await user.update_in_db()
 
     return converted

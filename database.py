@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import aiosqlite
 from dotenv import load_dotenv
@@ -279,28 +279,6 @@ async def user_exists(user_id):
     await db.close()
 
     return bool(result)
-
-
-async def time_after(
-    after_hours, after_minute, timezone_offset, lower_limit, upper_limit
-):
-    now_utc = datetime.now(UTC)
-    now_localized = now_utc + timedelta(hours=timezone_offset)
-    future_time = now_localized + timedelta(hours=after_hours, minutes=after_minute)
-    future_hour = future_time.hour
-    if lower_limit <= upper_limit:
-        if lower_limit <= future_hour <= upper_limit:
-            future_time = future_time.replace(
-                hour=upper_limit, minute=0, second=0, microsecond=0
-            )
-    else:
-        if lower_limit <= future_hour or future_hour < upper_limit:
-            future_time = future_time.replace(
-                hour=upper_limit, minute=0, second=0, microsecond=0
-            )
-    if future_time <= now_localized:
-        future_time += timedelta(days=1)
-    return future_time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 async def get_past_dates():
