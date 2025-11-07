@@ -94,11 +94,11 @@ async def send_reminder_to_user(user_id: int):
         llm_msg = await send_request_to_openrouter(prompt_for_request)
     except Exception as e:
         logger.error(f"LLM{user_id} - Критическая ошибка: {e}", exc_info=True)
-        return
+        raise  # Выбрасываем исключение для корректного подсчета ошибок
 
     if llm_msg is None or llm_msg.strip() == "":
         logger.error(f"LLM{user_id} - пустой ответ от LLM")
-        return
+        raise ValueError(f"Empty response from LLM for user {user_id}")
 
     # Сохраняем ответ в историю
     await user.update_prompt("assistant", llm_msg)

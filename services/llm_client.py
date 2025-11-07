@@ -6,6 +6,8 @@ import os
 import aiohttp
 from dotenv import load_dotenv
 
+from config import logger
+
 load_dotenv()
 LLM_TOKEN = os.environ.get("LLM_TOKEN")
 MODEL = os.environ.get("MODEL")
@@ -43,26 +45,34 @@ async def send_request_to_openrouter(
                 response.raise_for_status()
                 response_text = await response.text()
                 response_json = json.loads(response_text)
+
+                # Логируем ответ для отладки
+                logger.debug(f"LLM API response: {json.dumps(response_json, ensure_ascii=False)[:500]}")
+
                 if "choices" in response_json and len(response_json["choices"]) > 0:
-                    return response_json["choices"][0]["message"]["content"]
-                print("No choices returned in the response.")
+                    content = response_json["choices"][0]["message"]["content"]
+                    if content is None or content.strip() == "":
+                        logger.warning(f"LLM returned empty content. Full response: {response_json}")
+                    return content
+
+                logger.error(f"No choices in LLM response. Response: {response_json}")
                 return None
 
         except aiohttp.ClientResponseError as e:
             if e.status == 429:
-                print(
+                logger.warning(
                     f"429 Too Many Requests, попытка {attempt}/{retries}. Жду {delay} сек..."
                 )
                 await asyncio.sleep(delay)
                 delay *= backoff_factor
             else:
-                print(f"HTTP error: {e}")
+                logger.error(f"HTTP error: {e}")
                 return None
         except aiohttp.ClientError as e:
-            print(f"Error sending request to OpenRouter: {e}")
+            logger.error(f"Error sending request to OpenRouter: {e}")
             return None
         except json.JSONDecodeError as e:
-            print(f"Error decoding JSON response: {e}")
+            logger.error(f"Error decoding JSON response: {e}")
             return None
 
     return None
@@ -143,27 +153,30 @@ async def send_image_to_vision_model(
                 response_json = json.loads(response_text)
 
                 if "choices" in response_json and len(response_json["choices"]) > 0:
-                    return response_json["choices"][0]["message"]["content"]
+                    content = response_json["choices"][0]["message"]["content"]
+                    if content is None or content.strip() == "":
+                        logger.warning(f"Vision model returned empty content. Full response: {response_json}")
+                    return content
 
-                print("No choices returned in the response (vision model).")
+                logger.error(f"No choices in vision model response. Response: {response_json}")
                 return None
 
         except aiohttp.ClientResponseError as e:
             if e.status == 429:
-                print(
+                logger.warning(
                     f"Vision model 429 Too Many Requests, попытка {attempt}/{retries}. "
                     f"Жду {delay} сек..."
                 )
                 await asyncio.sleep(delay)
                 delay *= backoff_factor
             else:
-                print(f"Vision model HTTP error: {e}")
+                logger.error(f"Vision model HTTP error: {e}")
                 return None
         except aiohttp.ClientError as e:
-            print(f"Error sending image to OpenRouter (vision model): {e}")
+            logger.error(f"Error sending image to OpenRouter (vision model): {e}")
             return None
         except json.JSONDecodeError as e:
-            print(f"Error decoding JSON response (vision model): {e}")
+            logger.error(f"Error decoding JSON response (vision model): {e}")
             return None
 
     return None
