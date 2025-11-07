@@ -27,7 +27,7 @@ class User:
         id,
         name=None,
         prompt=None,
-        remind_of_yourself="2077-06-15 22:03:51",
+        remind_of_yourself=None,
         sub_lvl=0,
         sub_id=0,
         sub_period=-1,
@@ -42,7 +42,7 @@ class User:
         self.id = id
         self.name = name
         self.prompt = prompt  # Оставляем для обратной совместимости
-        self.remind_of_yourself = remind_of_yourself
+        self.remind_of_yourself = remind_of_yourself  # NULL = не отправлялось, "0" = отключено, иначе timestamp
         self.sub_lvl = sub_lvl
         self.sub_id = sub_id
         self.sub_period = sub_period
@@ -306,25 +306,36 @@ async def time_after(
 async def get_past_dates():
     """
     Получает список пользователей, которым нужно отправить напоминание.
-    Проверяет, наступило ли время из списка reminder_times.
+    Проверяет, наступило ли время из списка reminder_times для ежедневных напоминаний.
+
+    Логика:
+    - remind_of_yourself = "0" -> напоминания отключены
+    - remind_of_yourself = NULL -> еще не отправлялось, можно отправить
+    - remind_of_yourself = timestamp -> проверяем, что прошел минимум 1 час
 
     Returns:
         Список user_id пользователей, которым нужно отправить напоминание
     """
+    from config import logger
+
     past_user_ids = []
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("PRAGMA journal_mode=WAL;") as cursor:
             await cursor.fetchone()
 
-        # Получаем текущее время в МСК (UTC+3)
+        # Получаем текущее время в МСК
         now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
         current_hour = now_msk.hour
         current_minute = now_msk.minute
+
+        logger.debug(f"Текущее время МСК: {now_msk.strftime('%Y-%m-%d %H:%M:%S')} ({current_hour:02d}:{current_minute:02d})")
 
         query = f"SELECT id, reminder_times, remind_of_yourself FROM {TABLE_NAME}"
 
         async with db.execute(query) as cursor:
             results = await cursor.fetchall()
+
+        logger.debug(f"Всего пользователей в БД: {len(results)}")
 
         for row in results:
             user_id = row[0]
@@ -333,6 +344,7 @@ async def get_past_dates():
 
             # Пропускаем пользователей с отключенными напоминаниями
             if remind_of_yourself == "0":
+                logger.debug(f"USER{user_id}: напоминания отключены")
                 continue
 
             # Парсим список времен напоминаний
@@ -340,6 +352,8 @@ async def get_past_dates():
                 reminder_times = json.loads(reminder_times_json) if reminder_times_json else ["19:15"]
             except json.JSONDecodeError:
                 reminder_times = ["19:15"]
+
+            logger.debug(f"USER{user_id}: времена напоминаний {reminder_times}, последнее: {remind_of_yourself}")
 
             # Проверяем, наступило ли одно из времен напоминаний
             for reminder_time in reminder_times:
@@ -352,15 +366,39 @@ async def get_past_dates():
 
                     # Если время напоминания наступило (в пределах последних 15 минут)
                     if 0 <= time_diff < 15:
-                        # Проверяем, что мы еще не отправляли напоминание в этот период
-                        last_reminder = datetime.strptime(remind_of_yourself, "%Y-%m-%d %H:%M:%S")
+                        logger.debug(f"USER{user_id}: время {reminder_time} подходит (разница: {time_diff} мин)")
 
-                        # Если последнее напоминание было более часа назад - отправляем
-                        if (now_msk.replace(tzinfo=None) - last_reminder).total_seconds() > 3600:
+                        # Проверяем, можно ли отправить напоминание
+                        can_send = False
+
+                        if remind_of_yourself is None:
+                            # Еще никогда не отправлялось
+                            logger.debug(f"USER{user_id}: еще не получал напоминаний")
+                            can_send = True
+                        else:
+                            # Пытаемся распарсить timestamp
+                            try:
+                                last_reminder = datetime.strptime(remind_of_yourself, "%Y-%m-%d %H:%M:%S")
+                                time_since_last = (now_msk.replace(tzinfo=None) - last_reminder).total_seconds()
+
+                                # Минимум 1 час между напоминаниями (чтобы избежать дублей в одном временном окне)
+                                if time_since_last >= 3600:
+                                    logger.debug(f"USER{user_id}: прошло {int(time_since_last/60)} мин с последнего")
+                                    can_send = True
+                                else:
+                                    logger.debug(f"USER{user_id}: недавно отправлялось ({int(time_since_last/60)} мин назад)")
+                            except (ValueError, TypeError) as e:
+                                # Некорректный формат - считаем что можно отправить
+                                logger.warning(f"USER{user_id}: некорректный формат времени '{remind_of_yourself}': {e}")
+                                can_send = True
+
+                        if can_send:
+                            logger.info(f"USER{user_id}: добавлен в очередь на отправку (время {reminder_time})")
                             past_user_ids.append(user_id)
                             break  # Нашли подходящее время, выходим из цикла
 
-                except (ValueError, AttributeError):
+                except (ValueError, AttributeError) as e:
+                    logger.debug(f"USER{user_id}: ошибка при обработке времени {reminder_time}: {e}")
                     continue
 
     return past_user_ids
