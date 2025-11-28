@@ -109,7 +109,9 @@ jobs:
             echo "🔄 Начинаем деплой..."
             
             # Создаем директории если их нет
-            mkdir -p /opt/empathy-bot/data /opt/empathy-bot/logs
+            export DEPLOY_DIR="$HOME/empathy-bot"
+            mkdir -p "$DEPLOY_DIR/data" "$DEPLOY_DIR/logs"
+            echo "📁 Директория деплоя: $DEPLOY_DIR"
             
             # Сохраняем информацию о текущем работающем контейнере
             CURRENT_IMAGE=""
@@ -157,8 +159,8 @@ jobs:
                 -e ADMIN_LIST="$ADMIN_LIST" \
                 -e FILE_LOG_LEVEL="$FILE_LOG_LEVEL" \
                 -e TELEGRAM_LOG_LEVEL="$TELEGRAM_LOG_LEVEL" \
-                -v /opt/empathy-bot/data:/data \
-                -v /opt/empathy-bot/logs:/app/logs \
+                -v "$DEPLOY_DIR/data":/data \
+                -v "$DEPLOY_DIR/logs":/app/logs \
                 "$IMAGE"
             }
             

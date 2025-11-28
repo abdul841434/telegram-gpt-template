@@ -16,6 +16,7 @@ from config import ADMIN_CHAT, MESSAGES, logger
 from database import User
 from filters import UserIsAdmin
 from services.stats_service import generate_user_stats
+from services.subscription_service import is_user_subscribed_to_all
 from states import AdminDispatch, AdminDispatchAll, AdminSetReminderTimes
 
 
@@ -187,6 +188,68 @@ async def cmd_stats(message: types.Message):
         await message.answer_photo(
             weekly_file, caption="Средняя статистика по дням недели"
         )
+
+        # Проверка подписок пользователей (только если запрос по всем пользователям)
+        if not user_id:
+            sub_status_msg = await message.answer("⏳ Проверяю подписки пользователей на каналы...")
+            
+            try:
+                all_user_ids = await User.get_ids_from_table()
+                subscribed_count = 0
+                not_subscribed_count = 0
+                not_checked_count = 0
+                checked_users = 0
+                
+                for uid in all_user_ids:
+                    try:
+                        user = User(uid)
+                        await user.get_from_db()
+                        
+                        # Пропускаем пользователей, которые еще не проверялись
+                        if user.subscription_verified is None:
+                            not_checked_count += 1
+                            continue
+                        
+                        # Проверяем подписку
+                        is_subscribed = await is_user_subscribed_to_all(bot, uid)
+                        checked_users += 1
+                        
+                        # Обновляем статус в БД
+                        new_status = 1 if is_subscribed else 0
+                        
+                        if is_subscribed:
+                            subscribed_count += 1
+                        else:
+                            not_subscribed_count += 1
+                        
+                        # Обновляем в БД если статус изменился
+                        if user.subscription_verified != new_status:
+                            user.subscription_verified = new_status
+                            await user.update_in_db()
+                            logger.info(f"USER{uid}: статус подписки обновлен с {user.subscription_verified} на {new_status}")
+                        
+                        # Небольшая задержка между проверками
+                        await asyncio.sleep(0.05)
+                        
+                    except Exception as e:
+                        logger.error(f"Ошибка при проверке подписки USER{uid}: {e}", exc_info=True)
+                        continue
+                
+                # Формируем отчет по подпискам
+                subscription_report = (
+                    f"📢 Проверка подписок на каналы:\n\n"
+                    f"✅ Подписаны: {subscribed_count}\n"
+                    f"❌ Не подписаны: {not_subscribed_count}\n"
+                    f"⏸ Не проверялись: {not_checked_count}\n"
+                    f"📊 Проверено пользователей: {checked_users}/{len(all_user_ids)}"
+                )
+                
+                await sub_status_msg.edit_text(subscription_report)
+                logger.info(f"Проверка подписок завершена: подписано {subscribed_count}/{checked_users}")
+                
+            except Exception as sub_error:
+                logger.error(f"Ошибка при проверке подписок: {sub_error}", exc_info=True)
+                await sub_status_msg.edit_text(f"❌ Ошибка при проверке подписок: {sub_error}")
 
     except Exception as e:
         error_msg = f"❌ Ошибка при генерации статистики: {e}"
