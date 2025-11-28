@@ -94,6 +94,7 @@ jobs:
           FROM_TIME: ${{ secrets.FROM_TIME || '9' }}
           TO_TIME: ${{ secrets.TO_TIME || '23' }}
           ADMIN_LIST: ${{ secrets.ADMIN_LIST || '' }}
+          REQUIRED_CHANNELS: ${{ secrets.REQUIRED_CHANNELS || '' }}
           FILE_LOG_LEVEL: ${{ secrets.FILE_LOG_LEVEL || 'INFO' }}
           TELEGRAM_LOG_LEVEL: ${{ secrets.TELEGRAM_LOG_LEVEL || 'DISABLED' }}
           NEW_IMAGE: ${{ env.REGISTRY }}/${{ secrets.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}:latest
@@ -102,7 +103,7 @@ jobs:
           host: ${{ secrets.YC_INSTANCE_IP }}
           username: ${{ secrets.YC_INSTANCE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,TABLE_NAME,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,ADMIN_LIST,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,NEW_IMAGE,BACKUP_IMAGE
+          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,TABLE_NAME,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,ADMIN_LIST,REQUIRED_CHANNELS,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,NEW_IMAGE,BACKUP_IMAGE
           script: |
             set -e  # Остановка при ошибке
 
@@ -129,16 +130,28 @@ jobs:
             echo "⬇️  Скачиваем новый образ..."
             docker pull "$NEW_IMAGE"
 
-            # Останавливаем текущий контейнер
+            # Останавливаем и удаляем текущий контейнер
             echo "⏸️  Останавливаем текущий контейнер..."
             docker stop empathy-ai-bot 2>/dev/null || true
-            docker rm empathy-ai-bot 2>/dev/null || true
+            docker rm -f empathy-ai-bot 2>/dev/null || true
+            
+            # Дополнительная проверка - удаляем контейнер если он все еще существует
+            if docker ps -a --filter name=empathy-ai-bot --format "{{.Names}}" | grep -q empathy-ai-bot; then
+              echo "⚠️  Принудительное удаление контейнера..."
+              docker rm -f empathy-ai-bot 2>/dev/null || true
+              sleep 2
+            fi
+            
+            echo "✅ Контейнер остановлен и удален"
 
             # Функция для запуска контейнера
             start_container() {
               local IMAGE=$1
               echo "🚀 Запускаем контейнер с образом: $IMAGE"
-
+              
+              # Убеждаемся что старый контейнер удален
+              docker rm -f empathy-ai-bot 2>/dev/null || true
+              
               docker run -d \
                 --name empathy-ai-bot \
                 --restart unless-stopped \
@@ -157,6 +170,7 @@ jobs:
                 -e FROM_TIME="$FROM_TIME" \
                 -e TO_TIME="$TO_TIME" \
                 -e ADMIN_LIST="$ADMIN_LIST" \
+                -e REQUIRED_CHANNELS="$REQUIRED_CHANNELS" \
                 -e FILE_LOG_LEVEL="$FILE_LOG_LEVEL" \
                 -e TELEGRAM_LOG_LEVEL="$TELEGRAM_LOG_LEVEL" \
                 -v "$DEPLOY_DIR/data":/data \
