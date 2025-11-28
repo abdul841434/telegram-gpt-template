@@ -34,6 +34,7 @@ class User:
         is_admin=0,
         active_messages_count=None,
         reminder_times=None,
+        subscription_verified=None,
     ):
         if prompt is None:
             prompt = []
@@ -49,6 +50,7 @@ class User:
         self.is_admin = is_admin
         self.active_messages_count = active_messages_count  # NULL = все, 0 = забыть, N = последние N
         self.reminder_times = reminder_times  # Список времен напоминаний в формате HH:MM (МСК)
+        self.subscription_verified = subscription_verified  # NULL = не проверялось, 0 = не подписан, 1 = подписан
 
     def __repr__(self):
         return f"User(id={self.id}, \n name={self.name}, \n prompt={self.prompt}, \n remind_of_yourself={self.remind_of_yourself}, \n sub_lvl={self.sub_lvl}, \n sub_id={self.sub_id}, \n sub_period={self.sub_period}, \n is_admin={self.is_admin})"
@@ -70,6 +72,7 @@ class User:
                 self.is_admin = row[7]
                 self.active_messages_count = row[8] if len(row) > 8 else None
                 self.reminder_times = json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"]
+                self.subscription_verified = row[10] if len(row) > 10 else None
 
     async def __call__(self, user_id):
         async with aiosqlite.connect(DATABASE_NAME) as db:
@@ -89,6 +92,7 @@ class User:
                     is_admin=row[7],
                     active_messages_count=row[8] if len(row) > 8 else None,
                     reminder_times=json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"],
+                    subscription_verified=row[10] if len(row) > 10 else None,
                 )
             return None
 
@@ -104,8 +108,8 @@ class User:
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
             sql_insert = f"""
-                        INSERT INTO {TABLE_NAME} (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_times)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO {TABLE_NAME} (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_times, subscription_verified)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """
             values = (
                 self.id,
@@ -118,6 +122,7 @@ class User:
                 self.is_admin,
                 self.active_messages_count,
                 json.dumps(self.reminder_times),
+                self.subscription_verified,
             )
             await cursor.execute(sql_insert, values)
             await db.commit()
@@ -214,7 +219,7 @@ class User:
             cursor = await db.cursor()
             sql_query = f"""
                 UPDATE {TABLE_NAME}
-                SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?, reminder_times = ?
+                SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?, reminder_times = ?, subscription_verified = ?
                 WHERE id = ?
             """
             values = (
@@ -227,6 +232,7 @@ class User:
                 self.is_admin,
                 self.active_messages_count,
                 json.dumps(self.reminder_times),
+                self.subscription_verified,
                 self.id,
             )
             await cursor.execute(sql_query, values)

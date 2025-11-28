@@ -18,6 +18,10 @@ load_dotenv()
 TG_TOKEN = os.environ.get("TG_TOKEN")
 ADMIN_CHAT = int(os.environ.get("ADMIN_CHAT") or "0")
 
+# Обязательные каналы для подписки (разделенные запятыми)
+REQUIRED_CHANNELS_STR = os.environ.get("REQUIRED_CHANNELS", "")
+REQUIRED_CHANNELS = [ch.strip() for ch in REQUIRED_CHANNELS_STR.split(",") if ch.strip()]
+
 # Кастомные уровни логирования
 FULL_LEVEL = 5  # Ниже DEBUG - полные промпты со всей историей
 MESSAGES_LEVEL = 25  # Между INFO и WARNING - только сообщения пользователей

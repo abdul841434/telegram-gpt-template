@@ -48,5 +48,18 @@ kill_bot.sh
 # Docker
 Dockerfile
 docker-compose.yml
+docker-compose.prod.yml
 .dockerignore
+
+# Tests
+tests/
+pytest.ini
+test_*.py
+*_test.py
+
+# Development files
+requirements-dev.txt
+ruff.toml
+.cursorignore
+env.example
 
