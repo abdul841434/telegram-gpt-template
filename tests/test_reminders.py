@@ -45,7 +45,8 @@ async def test_db():
                 sub_period INTEGER,
                 is_admin INTEGER,
                 active_messages_count INTEGER,
-                reminder_times JSON
+                reminder_times JSON,
+                subscription_verified INTEGER
             )
         """)
 
