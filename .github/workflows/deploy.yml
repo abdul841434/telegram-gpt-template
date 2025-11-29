@@ -149,6 +149,8 @@ jobs:
             if [ -n "$CONTAINER_IDS" ]; then
               echo "🗑️  Найдены контейнеры для удаления: $CONTAINER_IDS"
               for CONTAINER_ID in $CONTAINER_IDS; do
+                echo "  Отключаем автоперезапуск для $CONTAINER_ID..."
+                docker update --restart=no "$CONTAINER_ID" 2>/dev/null || true
                 echo "  Останавливаем контейнер $CONTAINER_ID..."
                 docker stop "$CONTAINER_ID" 2>/dev/null || true
                 echo "  Удаляем контейнер $CONTAINER_ID..."
@@ -190,11 +192,12 @@ jobs:
                 echo "REQUIRED_CHANNELS=$REQUIRED_CHANNELS"
                 echo "FILE_LOG_LEVEL=$FILE_LOG_LEVEL"
                 echo "TELEGRAM_LOG_LEVEL=$TELEGRAM_LOG_LEVEL"
+                echo "YC_REGISTRY_ID=$YC_REGISTRY_ID"
               } > "$DEPLOY_DIR/.env"
               
               # Запускаем через docker-compose
               cd "$DEPLOY_DIR"
-              YC_REGISTRY_ID=$YC_REGISTRY_ID docker-compose -f docker-compose.prod.yml up -d
+              docker-compose -f docker-compose.prod.yml up -d
             }
 
             # Запускаем новый контейнер
