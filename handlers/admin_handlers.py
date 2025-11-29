@@ -195,11 +195,14 @@ async def cmd_stats(message: types.Message):
 
             try:
                 all_user_ids = await User.get_ids_from_table()
+                # Фильтруем только обычных пользователей (положительные ID)
+                # Отрицательные ID - это группы/чаты, для них проверка подписки не имеет смысла
+                user_ids = [uid for uid in all_user_ids if uid > 0]
                 subscribed_count = 0
                 not_subscribed_count = 0
                 unsubscribed_count = 0  # Отписавшиеся (были подписаны, но теперь нет)
 
-                for uid in all_user_ids:
+                for uid in user_ids:
                     try:
                         user = User(uid)
                         await user.get_from_db()
@@ -244,11 +247,11 @@ async def cmd_stats(message: types.Message):
                     f"✅ Подписаны: {subscribed_count}\n"
                     f"❌ Не подписаны: {not_subscribed_count}\n"
                     f"🔄 Отписались: {unsubscribed_count}\n"
-                    f"📊 Всего проверено: {len(all_user_ids)}"
+                    f"📊 Всего проверено: {len(user_ids)} (пользователей в БД: {len(all_user_ids)})"
                 )
 
                 await sub_status_msg.edit_text(subscription_report)
-                logger.info(f"Проверка подписок завершена: подписано {subscribed_count}, не подписано {not_subscribed_count}, отписалось {unsubscribed_count}")
+                logger.info(f"Проверка подписок завершена: подписано {subscribed_count}, не подписано {not_subscribed_count}, отписалось {unsubscribed_count}, всего проверено {len(user_ids)}")
 
             except Exception as sub_error:
                 logger.error(f"Ошибка при проверке подписок: {sub_error}", exc_info=True)

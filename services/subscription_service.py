@@ -46,9 +46,15 @@ async def check_user_subscription(bot: Bot, user_id: int, channels: list[str] = 
             logger.debug(f"USER{user_id}: канал {channel}, статус {member.status}, подписан: {is_subscribed}")
 
         except TelegramBadRequest as e:
-            # Канал не найден или бот не является админом
-            logger.warning(f"Ошибка при проверке канала {channel} для USER{user_id}: {e}")
-            results[channel] = False
+            # Специальная обработка для PARTICIPANT_ID_INVALID
+            # Это нормальная ситуация для пользователей, которые никогда не были в канале
+            if "PARTICIPANT_ID_INVALID" in str(e):
+                logger.debug(f"USER{user_id}: не является участником канала {channel} (никогда не был подписан)")
+                results[channel] = False
+            else:
+                # Другие ошибки - канал не найден или бот не является админом
+                logger.warning(f"Ошибка при проверке канала {channel} для USER{user_id}: {e}")
+                results[channel] = False
         except TelegramForbiddenError as e:
             # Бот заблокирован пользователем или не имеет доступа
             logger.warning(f"Нет доступа к каналу {channel} для USER{user_id}: {e}")
@@ -122,8 +128,11 @@ async def subscription_check_loop(bot: Bot):
     while True:
         try:
             # Получаем всех пользователей из БД
-            user_ids = await User.get_ids_from_table()
-            logger.info(f"Проверка подписок для {len(user_ids)} пользователей")
+            all_user_ids = await User.get_ids_from_table()
+            # Фильтруем только обычных пользователей (положительные ID)
+            # Отрицательные ID - это группы/чаты, для них проверка подписки не имеет смысла
+            user_ids = [uid for uid in all_user_ids if uid > 0]
+            logger.info(f"Проверка подписок для {len(user_ids)} пользователей (всего в БД: {len(all_user_ids)})")
 
             for user_id in user_ids:
                 try:
