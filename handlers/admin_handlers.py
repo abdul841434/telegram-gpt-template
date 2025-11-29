@@ -197,36 +197,39 @@ async def cmd_stats(message: types.Message):
                 all_user_ids = await User.get_ids_from_table()
                 subscribed_count = 0
                 not_subscribed_count = 0
-                not_checked_count = 0
-                checked_users = 0
+                unsubscribed_count = 0  # Отписавшиеся (были подписаны, но теперь нет)
 
                 for uid in all_user_ids:
                     try:
                         user = User(uid)
                         await user.get_from_db()
 
-                        # Пропускаем пользователей, которые еще не проверялись
-                        if user.subscription_verified is None:
-                            not_checked_count += 1
-                            continue
+                        # Сохраняем старый статус для определения отписавшихся
+                        old_status = user.subscription_verified
 
-                        # Проверяем подписку
+                        # Проверяем подписку для ВСЕХ пользователей
                         is_subscribed = await is_user_subscribed_to_all(bot, uid)
-                        checked_users += 1
 
                         # Обновляем статус в БД
                         new_status = 1 if is_subscribed else 0
 
+                        # Обновляем счетчики
                         if is_subscribed:
                             subscribed_count += 1
                         else:
                             not_subscribed_count += 1
+                            # Проверяем, отписался ли пользователь
+                            if old_status == 1:
+                                unsubscribed_count += 1
+                                logger.info(f"USER{uid}: отписался от канала")
 
-                        # Обновляем в БД если статус изменился
-                        if user.subscription_verified != new_status:
-                            user.subscription_verified = new_status
-                            await user.update_in_db()
-                            logger.info(f"USER{uid}: статус подписки обновлен с {user.subscription_verified} на {new_status}")
+                        # Обновляем в БД
+                        user.subscription_verified = new_status
+                        await user.update_in_db()
+
+                        # Логируем если статус изменился
+                        if old_status != new_status:
+                            logger.info(f"USER{uid}: статус подписки обновлен с {old_status} на {new_status}")
 
                         # Небольшая задержка между проверками
                         await asyncio.sleep(0.05)
@@ -240,12 +243,12 @@ async def cmd_stats(message: types.Message):
                     f"📢 Проверка подписок на каналы:\n\n"
                     f"✅ Подписаны: {subscribed_count}\n"
                     f"❌ Не подписаны: {not_subscribed_count}\n"
-                    f"⏸ Не проверялись: {not_checked_count}\n"
-                    f"📊 Проверено пользователей: {checked_users}/{len(all_user_ids)}"
+                    f"🔄 Отписались: {unsubscribed_count}\n"
+                    f"📊 Всего проверено: {len(all_user_ids)}"
                 )
 
                 await sub_status_msg.edit_text(subscription_report)
-                logger.info(f"Проверка подписок завершена: подписано {subscribed_count}/{checked_users}")
+                logger.info(f"Проверка подписок завершена: подписано {subscribed_count}, не подписано {not_subscribed_count}, отписалось {unsubscribed_count}")
 
             except Exception as sub_error:
                 logger.error(f"Ошибка при проверке подписок: {sub_error}", exc_info=True)
