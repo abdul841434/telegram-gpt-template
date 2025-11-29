@@ -151,17 +151,47 @@ jobs:
               for CONTAINER_ID in $CONTAINER_IDS; do
                 echo "  Отключаем автоперезапуск для $CONTAINER_ID..."
                 docker update --restart=no "$CONTAINER_ID" 2>/dev/null || true
-                echo "  Останавливаем контейнер $CONTAINER_ID..."
-                docker stop "$CONTAINER_ID" 2>/dev/null || true
+                
+                # Получаем PID процесса контейнера
+                CONTAINER_PID=$(docker inspect "$CONTAINER_ID" --format '{{.State.Pid}}' 2>/dev/null || echo "")
+                
+                if [ -n "$CONTAINER_PID" ] && [ "$CONTAINER_PID" != "0" ]; then
+                  echo "  Убиваем процесс контейнера $CONTAINER_ID (PID: $CONTAINER_PID)..."
+                  sudo kill -9 "$CONTAINER_PID" 2>/dev/null || true
+                  sleep 1
+                else
+                  echo "  Процесс контейнера $CONTAINER_ID не найден или уже остановлен"
+                fi
+                
+                echo "  Удаляем контейнер $CONTAINER_ID..."
+                docker rm -f "$CONTAINER_ID" 2>/dev/null || true
               done
               sleep 2
             fi
             
             # Финальная проверка
             if docker ps -a --filter name=empathy-ai-bot --format "{{.Names}}" | grep -q empathy-ai-bot; then
-              echo "❌ ОШИБКА: Контейнер все еще существует!"
-              docker ps -a --filter name=empathy-ai-bot
-              exit 1
+              echo "⚠️  Контейнер все еще существует, применяем экстренные меры..."
+              
+              # Последняя попытка - убить все процессы и принудительно удалить
+              REMAINING_IDS=$(docker ps -a --filter name=empathy-ai-bot --format "{{.ID}}")
+              for CONTAINER_ID in $REMAINING_IDS; do
+                CONTAINER_PID=$(docker inspect "$CONTAINER_ID" --format '{{.State.Pid}}' 2>/dev/null || echo "")
+                if [ -n "$CONTAINER_PID" ] && [ "$CONTAINER_PID" != "0" ]; then
+                  echo "  Экстренно убиваем PID: $CONTAINER_PID..."
+                  sudo kill -9 "$CONTAINER_PID" 2>/dev/null || true
+                fi
+                sleep 1
+                docker rm -f "$CONTAINER_ID" 2>/dev/null || true
+              done
+              sleep 2
+              
+              # Финальная-финальная проверка
+              if docker ps -a --filter name=empathy-ai-bot --format "{{.Names}}" | grep -q empathy-ai-bot; then
+                echo "❌ ОШИБКА: Контейнер все еще существует после всех попыток!"
+                docker ps -a --filter name=empathy-ai-bot
+                exit 1
+              fi
             fi
             
             echo "✅ Все старые контейнеры удалены"
