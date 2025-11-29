@@ -32,6 +32,11 @@ async def bot_added_to_chat(message: types.Message):
         chat_title = message.chat.title or "этот чат"
         logger.info(f"CHAT{chat_id}: бот добавлен в чат '{chat_title}'")
 
+        # Создаем запись чата в БД, чтобы обработчик registration не сработал
+        chat_user = User(chat_id, chat_title)
+        await chat_user.save_for_db()
+        logger.info(f"CHAT{chat_id}: запись создана в БД")
+
         # Отправляем приветственное сообщение
         welcome_text = (
             f"👋 Привет! Спасибо, что добавили меня в '{chat_title}'!\n\n"
