@@ -60,9 +60,36 @@ class MessageBuffer:
                 self.user_states[chat_id]["processing"] = True
                 return True
 
+    async def peek_buffered_messages(self, chat_id: int) -> list[str]:
+        """
+        Просматривает накопленные сообщения БЕЗ очистки буфера.
+
+        Args:
+            chat_id: ID чата пользователя
+
+        Returns:
+            Копия списка накопленных сообщений
+        """
+        async with self.get_lock(chat_id):
+            return self.user_states[chat_id]["buffer"].copy()
+
+    async def clear_buffer(self, chat_id: int):
+        """
+        Очищает буфер сообщений.
+
+        Args:
+            chat_id: ID чата пользователя
+        """
+        async with self.get_lock(chat_id):
+            count = len(self.user_states[chat_id]["buffer"])
+            self.user_states[chat_id]["buffer"] = []
+            logger.debug(f"USER{chat_id} буфер очищен ({count} сообщений)")
+
     async def get_buffered_messages(self, chat_id: int) -> list[str]:
         """
         Получает все накопленные сообщения и очищает буфер.
+        
+        УСТАРЕВШИЙ метод. Используйте peek_buffered_messages() + clear_buffer().
 
         Args:
             chat_id: ID чата пользователя

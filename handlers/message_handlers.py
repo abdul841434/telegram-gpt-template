@@ -69,8 +69,8 @@ async def handle_text_message(message: types.Message):
     try:
         # Цикл обработки: обрабатываем пока есть сообщения в буфере
         while True:
-            # Получаем все накопленные сообщения
-            messages = await message_buffer.get_buffered_messages(message.chat.id)
+            # ПРОСМАТРИВАЕМ все накопленные сообщения БЕЗ очистки буфера
+            messages = await message_buffer.peek_buffered_messages(message.chat.id)
             combined_text = "\n".join(messages)
 
             logger.info(f"USER{message.chat.id}TOLLM (объединено {len(messages)} сообщений): {combined_text}")
@@ -80,23 +80,28 @@ async def handle_text_message(message: types.Message):
             await message_buffer.set_current_task(message.chat.id, llm_task)
 
             # Периодически проверяем, не пришли ли новые сообщения
+            was_interrupted = False
             while not llm_task.done():
                 await asyncio.sleep(0.1)
 
-                # Проверяем, есть ли новые сообщения в буфере
-                if await message_buffer.has_buffered_messages(message.chat.id):
+                # Сравниваем текущий буфер с тем, что мы начали обрабатывать
+                current_buffer = await message_buffer.peek_buffered_messages(message.chat.id)
+                if len(current_buffer) > len(messages):
                     # Пришли новые сообщения! НЕ ждем текущий ответ
                     logger.info(
-                        f"USER{message.chat.id} пришли новые сообщения, "
+                        f"USER{message.chat.id} пришли новые сообщения "
+                        f"({len(current_buffer) - len(messages)} новых), "
                         f"прерываем ожидание текущего ответа"
                     )
+                    was_interrupted = True
                     # Прерываем ожидание (задача продолжит работать в фоне, но результат нам не нужен)
                     break
 
             # Если задача завершилась БЕЗ прерывания
-            if llm_task.done():
+            if llm_task.done() and not was_interrupted:
                 # Проверяем еще раз буфер (могло прийти сообщение в последний момент)
-                if not await message_buffer.has_buffered_messages(message.chat.id):
+                current_buffer = await message_buffer.peek_buffered_messages(message.chat.id)
+                if len(current_buffer) == len(messages):
                     # Все хорошо, используем полученный ответ
                     llm_response, user = await llm_task
 
@@ -105,7 +110,8 @@ async def handle_text_message(message: types.Message):
                             "Прости, твое сообщение вызвало у меня ошибку(( "
                             "Пожалуйста попробуй снова"
                         )
-                        # Завершаем обработку
+                        # Очищаем буфер и завершаем обработку
+                        await message_buffer.clear_buffer(message.chat.id)
                         await message_buffer.finish_processing(message.chat.id)
                         return
 
@@ -142,13 +148,20 @@ async def handle_text_message(message: types.Message):
                         start += 4096
 
                     logger.info(f"LLM{message.chat.id} - {converted_response}")
+                    
+                    # ТОЛЬКО СЕЙЧАС очищаем буфер после успешной обработки
+                    await message_buffer.clear_buffer(message.chat.id)
                 else:
                     # Пришли новые сообщения в последний момент
                     logger.info(
                         f"USER{message.chat.id} получен ответ от LLM, "
-                        f"но игнорируем его из-за новых сообщений"
+                        f"но игнорируем его из-за новых сообщений "
+                        f"(было {len(messages)}, стало {len(current_buffer)})"
                     )
-                    # НЕ сохраняем в контекст, продолжаем цикл
+                    # НЕ очищаем буфер, НЕ сохраняем в контекст, продолжаем цикл
+            elif was_interrupted:
+                # Прерывание - не очищаем буфер, в нем остались все сообщения
+                logger.debug(f"USER{message.chat.id} буфер НЕ очищен из-за прерывания")
 
             # Проверяем, есть ли еще сообщения для обработки
             has_more = await message_buffer.finish_processing(message.chat.id)
