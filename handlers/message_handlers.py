@@ -12,10 +12,13 @@ from bot_instance import bot, dp
 from config import ADMIN_CHAT, MESSAGES, logger
 from database import User
 from services.llm_service import (
+    get_llm_response,
     process_user_image,
     process_user_message,
     process_user_video,
+    save_to_context_and_format,
 )
+from services.message_buffer import message_buffer
 from utils import forward_to_debug, keep_typing, should_respond_in_chat
 
 
@@ -52,50 +55,108 @@ async def handle_text_message(message: types.Message):
             await user_obj.update_in_db()
             logger.debug(f"USER{message.chat.id} имя обновлено: {new_name}")
 
-    # Запускаем индикатор печати
+    # Добавляем сообщение в буфер
+    should_process = await message_buffer.add_message(message.chat.id, message.text)
+
+    if not should_process:
+        # Обработка уже идет, сообщение добавлено в буфер
+        # Индикатор "печатает..." уже активен, ничего не делаем
+        return
+
+    # Запускаем индикатор печати ОДИН РАЗ для всей серии сообщений
     typing_task = asyncio.create_task(keep_typing(message.chat.id))
 
     try:
-        # Обрабатываем сообщение через LLM
-        converted_response = await process_user_message(message.chat.id, message.text)
+        # Цикл обработки: обрабатываем пока есть сообщения в буфере
+        while True:
+            # Получаем все накопленные сообщения
+            messages = await message_buffer.get_buffered_messages(message.chat.id)
+            combined_text = "\n".join(messages)
 
-        if converted_response is None:
-            await message.answer(
-                "Прости, твое сообщение вызвало у меня ошибку(( "
-                "Пожалуйста попробуй снова"
-            )
-            return
+            logger.info(f"USER{message.chat.id}TOLLM (объединено {len(messages)} сообщений): {combined_text}")
 
-        # Отправляем ответ пользователю (с разбивкой на части если нужно)
-        start = 0
-        while start < len(converted_response):
-            chunk = converted_response[start : start + 4096]
-            try:
-                generated_message = await message.answer(
-                    chunk, parse_mode=ParseMode.MARKDOWN_V2
-                )
-                await forward_to_debug(message.chat.id, generated_message.message_id)
-            except TelegramForbiddenError:
-                user = User(message.chat.id)
-                await user.get_from_db()
-                user.remind_of_yourself = 0
-                await user.update_in_db()
-                logger.warning(f"USER{message.chat.id} заблокировал чатбота")
-                return
-            except Exception as e:
-                # Пробуем отправить без форматирования
-                try:
-                    generated_message = await message.answer(chunk)
-                    await forward_to_debug(
-                        message.chat.id, generated_message.message_id
+            # Создаем задачу для получения ответа от LLM
+            llm_task = asyncio.create_task(get_llm_response(message.chat.id, combined_text))
+            await message_buffer.set_current_task(message.chat.id, llm_task)
+
+            # Периодически проверяем, не пришли ли новые сообщения
+            while not llm_task.done():
+                await asyncio.sleep(0.1)
+
+                # Проверяем, есть ли новые сообщения в буфере
+                if await message_buffer.has_buffered_messages(message.chat.id):
+                    # Пришли новые сообщения! НЕ ждем текущий ответ
+                    logger.info(
+                        f"USER{message.chat.id} пришли новые сообщения, "
+                        f"прерываем ожидание текущего ответа"
                     )
-                except Exception:
-                    pass
-                logger.error(f"LLM{message.chat.id} - {e}", exc_info=True)
+                    # Прерываем ожидание (задача продолжит работать в фоне, но результат нам не нужен)
+                    break
 
-            start += 4096
+            # Если задача завершилась БЕЗ прерывания
+            if llm_task.done():
+                # Проверяем еще раз буфер (могло прийти сообщение в последний момент)
+                if not await message_buffer.has_buffered_messages(message.chat.id):
+                    # Все хорошо, используем полученный ответ
+                    llm_response, user = await llm_task
 
-        logger.info(f"LLM{message.chat.id} - {converted_response}")
+                    if llm_response is None:
+                        await message.answer(
+                            "Прости, твое сообщение вызвало у меня ошибку(( "
+                            "Пожалуйста попробуй снова"
+                        )
+                        # Завершаем обработку
+                        await message_buffer.finish_processing(message.chat.id)
+                        return
+
+                    # Сохраняем в контекст и форматируем
+                    converted_response = await save_to_context_and_format(
+                        message.chat.id, user, combined_text, llm_response
+                    )
+
+                    # Отправляем ответ пользователю (с разбивкой на части если нужно)
+                    start = 0
+                    while start < len(converted_response):
+                        chunk = converted_response[start : start + 4096]
+                        try:
+                            generated_message = await message.answer(
+                                chunk, parse_mode=ParseMode.MARKDOWN_V2
+                            )
+                            await forward_to_debug(message.chat.id, generated_message.message_id)
+                        except TelegramForbiddenError:
+                            user.remind_of_yourself = 0
+                            await user.update_in_db()
+                            logger.warning(f"USER{message.chat.id} заблокировал чатбота")
+                            return
+                        except Exception as e:
+                            # Пробуем отправить без форматирования
+                            try:
+                                generated_message = await message.answer(chunk)
+                                await forward_to_debug(
+                                    message.chat.id, generated_message.message_id
+                                )
+                            except Exception:
+                                pass
+                            logger.error(f"LLM{message.chat.id} - {e}", exc_info=True)
+
+                        start += 4096
+
+                    logger.info(f"LLM{message.chat.id} - {converted_response}")
+                else:
+                    # Пришли новые сообщения в последний момент
+                    logger.info(
+                        f"USER{message.chat.id} получен ответ от LLM, "
+                        f"но игнорируем его из-за новых сообщений"
+                    )
+                    # НЕ сохраняем в контекст, продолжаем цикл
+
+            # Проверяем, есть ли еще сообщения для обработки
+            has_more = await message_buffer.finish_processing(message.chat.id)
+            if not has_more:
+                # Буфер пуст, завершаем обработку
+                break
+
+            # Если есть еще сообщения, продолжаем цикл while True
 
     finally:
         typing_task.cancel()

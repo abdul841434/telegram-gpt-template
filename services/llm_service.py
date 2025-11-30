@@ -41,16 +41,19 @@ def log_prompt(chat_id: int, prompt: list[dict], prompt_type: str = "MESSAGE"):
     )
 
 
-async def process_user_message(chat_id: int, message_text: str) -> str | None:
+async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None, User]:
     """
-    Обрабатывает сообщение пользователя через LLM.
+    Получает ответ от LLM БЕЗ сохранения в контекст.
+    
+    Эта функция НЕ сохраняет диалог в базу данных. Используйте save_to_context_and_format()
+    для сохранения результата после подтверждения, что ответ нужен пользователю.
 
     Args:
         chat_id: ID чата пользователя
         message_text: Текст сообщения
 
     Returns:
-        Отформатированный ответ от LLM или None при ошибке
+        (ответ от LLM, объект пользователя) или (None, объект пользователя) при ошибке
     """
     user = User(chat_id)
     await user.get_from_db()
@@ -101,20 +104,44 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
         llm_msg = await send_request_to_openrouter(prompt_for_request)
     except Exception as e:
         logger.error(f"LLM{chat_id} - Критическая ошибка: {e}", exc_info=True)
-        return None
+        return None, user
 
     if llm_msg is None or llm_msg.strip() == "":
         logger.error(f"LLM{chat_id} - пустой ответ от LLM")
-        return None
+        return None, user
 
-    # Сохраняем сообщение пользователя и ответ в историю
-    await user.update_prompt("user", message_text)
-    await user.update_prompt("assistant", llm_msg)
     logger.debug(f"LLM_RAWOUTPUT{chat_id}:{llm_msg}")
+    
+    return llm_msg, user
+
+
+async def save_to_context_and_format(
+    chat_id: int, 
+    user: User, 
+    user_message: str, 
+    llm_response: str
+) -> str:
+    """
+    Сохраняет диалог в контекст и форматирует ответ для Telegram.
+    
+    Вызывайте эту функцию ТОЛЬКО если уверены, что ответ будет показан пользователю.
+
+    Args:
+        chat_id: ID чата пользователя
+        user: Объект пользователя
+        user_message: Исходное сообщение пользователя
+        llm_response: Ответ от LLM
+
+    Returns:
+        Отформатированный ответ для Telegram
+    """
+    # Сохраняем сообщение пользователя и ответ в историю
+    await user.update_prompt("user", user_message)
+    await user.update_prompt("assistant", llm_response)
 
     # Конвертируем в Telegram Markdown
     converted = telegramify_markdown.markdownify(
-        llm_msg,
+        llm_response,
         max_line_length=None,
         normalize_whitespace=False,
     )
@@ -129,6 +156,28 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
     await user.update_in_db()
 
     return converted
+
+
+async def process_user_message(chat_id: int, message_text: str) -> str | None:
+    """
+    Обрабатывает сообщение пользователя через LLM.
+    
+    УСТАРЕВШАЯ функция для обратной совместимости.
+    Для новой логики с буфером используйте get_llm_response() + save_to_context_and_format().
+
+    Args:
+        chat_id: ID чата пользователя
+        message_text: Текст сообщения
+
+    Returns:
+        Отформатированный ответ от LLM или None при ошибке
+    """
+    llm_response, user = await get_llm_response(chat_id, message_text)
+    
+    if llm_response is None:
+        return None
+    
+    return await save_to_context_and_format(chat_id, user, message_text, llm_response)
 
 
 async def process_user_image(
