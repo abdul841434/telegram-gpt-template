@@ -142,11 +142,7 @@ async def subscription_check_loop(bot: Bot):
                     user = User(user_id)
                     await user.get_from_db()
 
-                    # Пропускаем пользователей, которые еще не проверялись (NULL)
-                    if user.subscription_verified is None:
-                        continue
-
-                    # Проверяем подписку
+                    # Проверяем подписку для всех пользователей
                     is_subscribed = await is_user_subscribed_to_all(bot, user_id)
                     new_status = 1 if is_subscribed else 0
 

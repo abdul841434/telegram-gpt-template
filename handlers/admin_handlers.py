@@ -189,19 +189,20 @@ async def cmd_stats(message: types.Message):
             weekly_file, caption="Средняя статистика по дням недели"
         )
 
-        # Проверка подписок пользователей (только если запрос по всем пользователям)
+        # Проверка подписок пользователей и чатов (только если запрос по всем пользователям)
         if not user_id:
-            sub_status_msg = await message.answer("⏳ Проверяю подписки пользователей на каналы...")
+            sub_status_msg = await message.answer("⏳ Проверяю подписки пользователей и чатов на каналы...")
 
             try:
                 all_user_ids = await User.get_ids_from_table()
-                # Фильтруем только обычных пользователей (положительные ID)
-                # Отрицательные ID - это группы/чаты, для них проверка подписки не имеет смысла
+                # Фильтруем только личных пользователей (положительные ID)
                 user_ids = [uid for uid in all_user_ids if uid > 0]
+
                 subscribed_count = 0
                 not_subscribed_count = 0
                 unsubscribed_count = 0  # Отписавшиеся (были подписаны, но теперь нет)
 
+                # ========== ПРОВЕРКА ЛИЧНЫХ ПОЛЬЗОВАТЕЛЕЙ ==========
                 for uid in user_ids:
                     try:
                         user = User(uid)
@@ -241,17 +242,70 @@ async def cmd_stats(message: types.Message):
                         logger.error(f"Ошибка при проверке подписки USER{uid}: {e}", exc_info=True)
                         continue
 
+                # ========== ПРОВЕРКА ГРУППОВЫХ ЧАТОВ ==========
+                import aiosqlite
+
+                from database import DATABASE_NAME, ChatVerification
+
+                async with aiosqlite.connect(DATABASE_NAME) as db:
+                    cursor = await db.execute("SELECT chat_id, verified_by_user_id, user_name FROM chat_verifications")
+                    chat_verifications = await cursor.fetchall()
+
+                chat_subscribed_count = 0
+                chat_not_subscribed_count = 0
+
+                for chat_id, verifier_user_id, verifier_name in chat_verifications:
+                    try:
+                        # Проверяем подписку пользователя-верификатора
+                        is_subscribed = await is_user_subscribed_to_all(bot, verifier_user_id)
+
+                        if is_subscribed:
+                            chat_subscribed_count += 1
+                            logger.debug(f"CHAT{chat_id}: верификатор {verifier_name} подписан")
+                        else:
+                            chat_not_subscribed_count += 1
+                            # Верификатор отписался - удаляем верификацию чата
+                            logger.warning(
+                                f"CHAT{chat_id}: верификатор {verifier_name} (ID: {verifier_user_id}) "
+                                f"отписался от каналов. Удаляем верификацию чата."
+                            )
+                            chat_verification = ChatVerification(chat_id)
+                            await chat_verification.delete_from_db()
+
+                        # Небольшая задержка между проверками
+                        await asyncio.sleep(0.05)
+
+                    except Exception as e:
+                        logger.error(f"Ошибка при проверке верификации CHAT{chat_id}: {e}", exc_info=True)
+                        continue
+
                 # Формируем отчет по подпискам
+                total_checked = len(user_ids) + len(chat_verifications)
+                total_subscribed = subscribed_count + chat_subscribed_count
+                total_not_subscribed = not_subscribed_count + chat_not_subscribed_count
+
                 subscription_report = (
                     f"📢 Проверка подписок на каналы:\n\n"
-                    f"✅ Подписаны: {subscribed_count}\n"
-                    f"❌ Не подписаны: {not_subscribed_count}\n"
-                    f"🔄 Отписались: {unsubscribed_count}\n"
-                    f"📊 Всего проверено: {len(user_ids)} (пользователей в БД: {len(all_user_ids)})"
+                    f"👤 Личные пользователи:\n"
+                    f"  ✅ Подписаны: {subscribed_count}\n"
+                    f"  ❌ Не подписаны: {not_subscribed_count}\n"
+                    f"  🔄 Отписались: {unsubscribed_count}\n\n"
+                    f"💬 Групповые чаты:\n"
+                    f"  ✅ Верифицированы: {chat_subscribed_count}\n"
+                    f"  ❌ Не верифицированы: {chat_not_subscribed_count}\n\n"
+                    f"📊 Итого:\n"
+                    f"  ✅ Подписаны/верифицированы: {total_subscribed}\n"
+                    f"  ❌ Не подписаны: {total_not_subscribed}\n"
+                    f"  📋 Всего проверено: {total_checked} (записей в БД: {len(all_user_ids)})"
                 )
 
                 await sub_status_msg.edit_text(subscription_report)
-                logger.info(f"Проверка подписок завершена: подписано {subscribed_count}, не подписано {not_subscribed_count}, отписалось {unsubscribed_count}, всего проверено {len(user_ids)}")
+                logger.info(
+                    f"Проверка подписок завершена: "
+                    f"пользователей подписано {subscribed_count}/{len(user_ids)}, "
+                    f"чатов верифицировано {chat_subscribed_count}/{len(chat_verifications)}, "
+                    f"всего проверено {total_checked}"
+                )
 
             except Exception as sub_error:
                 logger.error(f"Ошибка при проверке подписок: {sub_error}", exc_info=True)
