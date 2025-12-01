@@ -378,6 +378,11 @@ async def handle_sticker_message(message: types.Message):
     if message.chat.id == ADMIN_CHAT:
         return
 
+    # В групповых чатах отвечаем только на упоминания
+    if not await should_respond_in_chat(message):
+        logger.debug(f"CHAT{message.chat.id}: стикер без упоминания бота, игнорируем")
+        return
+
     logger.info(f"USER{message.chat.id} отправил стикер, не обрабатываем")
     await message.answer(
         "Извини, я пока не умею обрабатывать стикеры. Отправь мне текстовое сообщение или фотографию."
@@ -389,6 +394,11 @@ async def handle_voice_message(message: types.Message):
     """Обработка голосовых сообщений и аудио."""
     # Игнорируем сообщения из ADMIN_CHAT
     if message.chat.id == ADMIN_CHAT:
+        return
+
+    # В групповых чатах отвечаем только на упоминания
+    if not await should_respond_in_chat(message):
+        logger.debug(f"CHAT{message.chat.id}: аудио без упоминания бота, игнорируем")
         return
 
     logger.info(
