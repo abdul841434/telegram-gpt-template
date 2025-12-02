@@ -406,10 +406,10 @@ async def cmd_send_reminders(message: types.Message):
         # Получаем всех пользователей с включенными напоминаниями
         import aiosqlite
 
-        from database import DATABASE_NAME, TABLE_NAME
+        from database import DATABASE_NAME
 
         async with aiosqlite.connect(DATABASE_NAME) as db, db.execute(
-            f"SELECT id FROM {TABLE_NAME} WHERE remind_of_yourself != '0'"
+            "SELECT id FROM conversations WHERE remind_of_yourself != '0'"
         ) as cursor:
             user_ids = [row[0] for row in await cursor.fetchall()]
 

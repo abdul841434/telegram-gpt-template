@@ -94,7 +94,6 @@ jobs:
           ADMIN_CHAT: ${{ secrets.ADMIN_CHAT }}
           MODEL: ${{ secrets.MODEL || 'google/gemini-2.0-flash-exp:free' }}
           DEBUG: ${{ secrets.DEBUG || '0' }}
-          TABLE_NAME: ${{ secrets.TABLE_NAME || 'users' }}
           MAX_CONTEXT: ${{ secrets.MAX_CONTEXT || '20' }}
           MAX_STORAGE: ${{ secrets.MAX_STORAGE || '100' }}
           DELAYED_REMINDERS_HOURS: ${{ secrets.DELAYED_REMINDERS_HOURS || '2' }}
@@ -113,7 +112,7 @@ jobs:
           host: ${{ secrets.YC_INSTANCE_IP }}
           username: ${{ secrets.YC_INSTANCE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,TABLE_NAME,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,ADMIN_LIST,REQUIRED_CHANNELS,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,YC_REGISTRY_ID,NEW_IMAGE,BACKUP_IMAGE
+          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,ADMIN_LIST,REQUIRED_CHANNELS,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,YC_REGISTRY_ID,NEW_IMAGE,BACKUP_IMAGE
           script: |
             set -e  # Остановка при ошибке
 
@@ -226,7 +225,6 @@ jobs:
                 echo "ADMIN_CHAT=$ADMIN_CHAT"
                 echo "MODEL=$MODEL"
                 echo "DEBUG=$DEBUG"
-                echo "TABLE_NAME=$TABLE_NAME"
                 echo "MAX_CONTEXT=$MAX_CONTEXT"
                 echo "MAX_STORAGE=$MAX_STORAGE"
                 echo "DELAYED_REMINDERS_HOURS=$DELAYED_REMINDERS_HOURS"

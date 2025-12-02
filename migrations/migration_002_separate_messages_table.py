@@ -6,13 +6,11 @@
 """
 
 import json
-import os
 
 import aiosqlite
 from dotenv import load_dotenv
 
 load_dotenv()
-TABLE_NAME = os.environ.get("TABLE_NAME", "users")
 
 
 async def migrate(db: aiosqlite.Connection):
@@ -48,7 +46,7 @@ async def migrate(db: aiosqlite.Connection):
     print("  📦 Переносим сообщения из prompt в messages...")
 
     # Получаем всех пользователей с их историей
-    async with db.execute(f"SELECT id, prompt FROM {TABLE_NAME}") as cursor:
+    async with db.execute("SELECT id, prompt FROM conversations") as cursor:
         users = await cursor.fetchall()
 
     total_messages = 0
@@ -94,14 +92,14 @@ async def migrate(db: aiosqlite.Connection):
     print("  🔧 Добавляем поле active_messages_count в таблицу users...")
 
     # Проверяем, существует ли уже это поле
-    async with db.execute(f"PRAGMA table_info({TABLE_NAME})") as cursor:
+    async with db.execute("PRAGMA table_info(conversations)") as cursor:
         columns = await cursor.fetchall()
         column_names = [col[1] for col in columns]
 
     if "active_messages_count" not in column_names:
         # Добавляем новое поле (NULL = все сообщения активны)
-        await db.execute(f"""
-            ALTER TABLE {TABLE_NAME}
+        await db.execute("""
+            ALTER TABLE conversations
             ADD COLUMN active_messages_count INTEGER DEFAULT NULL
         """)
         await db.commit()
@@ -111,7 +109,7 @@ async def migrate(db: aiosqlite.Connection):
 
     # Очищаем старое поле prompt (оставляем пустым для обратной совместимости)
     print("  🧹 Очищаем старое поле prompt...")
-    await db.execute(f"UPDATE {TABLE_NAME} SET prompt = '[]'")
+    await db.execute("UPDATE conversations SET prompt = '[]'")
     await db.commit()
 
     print("  ✅ Миграция завершена успешно!")

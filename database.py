@@ -11,7 +11,6 @@ LLM_TOKEN = os.environ.get("LLM_TOKEN")
 DEBUG = bool(os.environ.get("DEBUG"))
 ADMIN_CHAT = int(os.environ.get("ADMIN_CHAT") or "0")
 DATABASE_NAME = os.environ.get("DATABASE_NAME", "users.db")
-TABLE_NAME = "conversations"  # Фиксированное название таблицы
 MAX_CONTEXT = int(os.environ.get("MAX_CONTEXT") or "10")
 MAX_STORAGE = int(os.environ.get("MAX_STORAGE", "100"))
 DELAYED_REMINDERS_HOURS = int(os.environ.get("DELAYED_REMINDERS_HOURS") or "2")
@@ -79,7 +78,7 @@ class Conversation:
     async def get_from_db(self):
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
-            sql = f"SELECT * FROM {TABLE_NAME} WHERE id = ?"
+            sql = "SELECT * FROM conversations WHERE id = ?"
             await cursor.execute(sql, (self.id,))
             row = await cursor.fetchone()
             if row:
@@ -98,7 +97,7 @@ class Conversation:
     async def __call__(self, user_id):
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
-            sql = f"SELECT * FROM {TABLE_NAME} WHERE id = ?"
+            sql = "SELECT * FROM conversations WHERE id = ?"
             await cursor.execute(sql, (user_id,))
             row = await cursor.fetchone()
             if row:
@@ -120,7 +119,7 @@ class Conversation:
     async def get_ids_from_table():
         async with (
             aiosqlite.connect(DATABASE_NAME) as db,
-            db.execute(f"SELECT id FROM {TABLE_NAME}") as cursor,
+            db.execute("SELECT id FROM conversations") as cursor,
         ):
             rows = await cursor.fetchall()
         return [row[0] for row in rows]
@@ -128,8 +127,8 @@ class Conversation:
     async def save_for_db(self):
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
-            sql_insert = f"""
-                        INSERT INTO {TABLE_NAME} (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_times, subscription_verified)
+            sql_insert = """
+                        INSERT INTO conversations (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_times, subscription_verified)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """
             values = (
@@ -238,8 +237,8 @@ class Conversation:
     async def update_in_db(self):
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
-            sql_query = f"""
-                UPDATE {TABLE_NAME}
+            sql_query = """
+                UPDATE conversations
                 SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?, reminder_times = ?, subscription_verified = ?
                 WHERE id = ?
             """
@@ -269,7 +268,7 @@ class Conversation:
             await cursor.execute("DELETE FROM messages WHERE user_id = ?", (self.id,))
 
             # Удаляем саму беседу
-            await cursor.execute(f"DELETE FROM {TABLE_NAME} WHERE id = ?", (self.id,))
+            await cursor.execute("DELETE FROM conversations WHERE id = ?", (self.id,))
 
             await db.commit()
             await cursor.close()
@@ -388,7 +387,7 @@ async def delete_chat_data(chat_id: int):
 
         # Удаляем запись о чате из таблицы conversations (если есть)
         await cursor.execute(
-            f"DELETE FROM {TABLE_NAME} WHERE id = ?",
+            "DELETE FROM conversations WHERE id = ?",
             (chat_id,)
         )
         logger.debug(f"CHAT{chat_id}: запись беседы удалена из БД")
@@ -403,8 +402,8 @@ async def check_db():
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.cursor() as cursor:
             await cursor.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+                """
+                CREATE TABLE IF NOT EXISTS conversations (
                     id INTEGER PRIMARY KEY,  --  ID is now the PRIMARY KEY and NOT AUTOINCREMENT
                     name TEXT,
                     prompt JSON,
@@ -426,7 +425,7 @@ async def check_db():
 async def user_exists(user_id):
     async with aiosqlite.connect(DATABASE_NAME) as db:
         cursor = await db.cursor()
-        sql = f"SELECT EXISTS(SELECT 1 FROM {TABLE_NAME} WHERE id = ?)"
+        sql = "SELECT EXISTS(SELECT 1 FROM conversations WHERE id = ?)"
         await cursor.execute(sql, (user_id,))
         result = (await cursor.fetchone())[0]
         await cursor.close()
@@ -462,7 +461,7 @@ async def get_past_dates():
 
         logger.debug(f"Текущее время МСК: {now_msk.strftime('%Y-%m-%d %H:%M:%S')} ({current_hour:02d}:{current_minute:02d})")
 
-        query = f"SELECT id, reminder_times, remind_of_yourself FROM {TABLE_NAME}"
+        query = "SELECT id, reminder_times, remind_of_yourself FROM conversations"
 
         async with db.execute(query) as cursor:
             results = await cursor.fetchall()

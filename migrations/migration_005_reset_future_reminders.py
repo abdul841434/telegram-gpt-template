@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 import aiosqlite
 
-from database import DATABASE_NAME, TABLE_NAME, TIMEZONE_OFFSET
+from database import DATABASE_NAME, TIMEZONE_OFFSET
 
 # Уникальный идентификатор миграции
 MIGRATION_ID = "migration_005_reset_future_reminders"
@@ -29,8 +29,8 @@ async def upgrade():
         # Сбрасываем все remind_of_yourself с датами в будущем на NULL
         # Исключаем "0" (напоминания отключены)
         await db.execute(
-            f"""
-            UPDATE {TABLE_NAME}
+            """
+            UPDATE conversations
             SET remind_of_yourself = NULL
             WHERE remind_of_yourself != '0'
             AND remind_of_yourself > ?
@@ -42,12 +42,12 @@ async def upgrade():
 
         # Проверяем результат
         cursor = await db.execute(
-            f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE remind_of_yourself IS NULL"
+            "SELECT COUNT(*) FROM conversations WHERE remind_of_yourself IS NULL"
         )
         count_null = (await cursor.fetchone())[0]
 
         cursor = await db.execute(
-            f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE remind_of_yourself = '0'"
+            "SELECT COUNT(*) FROM conversations WHERE remind_of_yourself = '0'"
         )
         count_disabled = (await cursor.fetchone())[0]
 

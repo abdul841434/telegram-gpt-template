@@ -6,13 +6,11 @@
 """
 
 import json
-import os
 
 import aiosqlite
 from dotenv import load_dotenv
 
 load_dotenv()
-TABLE_NAME = os.environ.get("TABLE_NAME", "users")
 
 
 async def migrate(db: aiosqlite.Connection):
@@ -25,7 +23,7 @@ async def migrate(db: aiosqlite.Connection):
     print("  📝 Добавляем timestamp к сообщениям...")
 
     # Получаем всех пользователей с их историей сообщений
-    async with db.execute(f"SELECT id, prompt FROM {TABLE_NAME}") as cursor:
+    async with db.execute("SELECT id, prompt FROM conversations") as cursor:
         users = await cursor.fetchall()
 
     updated_count = 0
@@ -50,7 +48,7 @@ async def migrate(db: aiosqlite.Connection):
                 # Сохраняем обновленную историю
                 updated_prompt = json.dumps(prompt)
                 await db.execute(
-                    f"UPDATE {TABLE_NAME} SET prompt = ? WHERE id = ?",
+                    "UPDATE conversations SET prompt = ? WHERE id = ?",
                     (updated_prompt, user_id)
                 )
                 updated_count += 1

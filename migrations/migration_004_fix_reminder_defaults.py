@@ -12,7 +12,7 @@
 
 import aiosqlite
 
-from database import DATABASE_NAME, TABLE_NAME
+from database import DATABASE_NAME
 
 # Уникальный идентификатор миграции
 MIGRATION_ID = "migration_004_fix_reminder_defaults"
@@ -23,8 +23,8 @@ async def upgrade():
     async with aiosqlite.connect(DATABASE_NAME) as db:
         # Обновляем дефолтное значение на NULL для пользователей с датой в будущем
         await db.execute(
-            f"""
-            UPDATE {TABLE_NAME}
+            """
+            UPDATE conversations
             SET remind_of_yourself = NULL
             WHERE remind_of_yourself = '2077-06-15 22:03:51'
             """
@@ -34,7 +34,7 @@ async def upgrade():
 
         # Проверяем результат
         cursor = await db.execute(
-            f"SELECT COUNT(*) FROM {TABLE_NAME} WHERE remind_of_yourself IS NULL"
+            "SELECT COUNT(*) FROM conversations WHERE remind_of_yourself IS NULL"
         )
         count = (await cursor.fetchone())[0]
 
@@ -46,8 +46,8 @@ async def downgrade():
     async with aiosqlite.connect(DATABASE_NAME) as db:
         # Возвращаем дефолтное значение
         await db.execute(
-            f"""
-            UPDATE {TABLE_NAME}
+            """
+            UPDATE conversations
             SET remind_of_yourself = '2077-06-15 22:03:51'
             WHERE remind_of_yourself IS NULL
             """

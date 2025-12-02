@@ -12,7 +12,6 @@ import aiosqlite
 import matplotlib
 import matplotlib.pyplot as plt
 
-from config import TABLE_NAME
 from database import DATABASE_NAME
 
 # Используем Agg backend для работы без GUI
@@ -235,7 +234,7 @@ async def get_total_users_count() -> int:
     async with aiosqlite.connect(DATABASE_NAME) as db:
         cursor = await db.cursor()
         # Получаем общее количество пользователей из таблицы
-        await cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME}")
+        await cursor.execute("SELECT COUNT(*) FROM conversations")
         result = await cursor.fetchone()
         return result[0] if result else 0
 
