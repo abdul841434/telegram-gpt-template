@@ -9,7 +9,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import Message
 
 from config import ADMIN_CHAT, REQUIRED_CHANNELS, logger
-from database import ChatVerification, User, user_exists
+from database import ChatVerification, Conversation, user_exists
 from handlers.subscription_handlers import send_subscription_request
 from utils import is_private_chat
 
@@ -68,11 +68,11 @@ class SubscriptionMiddleware(BaseMiddleware):
                 return await handler(event, data)
 
             # Получаем пользователя из БД
-            user = User(user_id)
-            await user.get_from_db()
+            conversation = Conversation(user_id)
+            await conversation.get_from_db()
 
             # Проверяем статус подписки
-            if user.subscription_verified == 0:
+            if conversation.subscription_verified == 0:
                 # Пользователь не подписан
                 logger.info(f"USER{user_id}: попытка использования бота без подписки (ЛС)")
 

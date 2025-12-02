@@ -11,7 +11,7 @@ LLM_TOKEN = os.environ.get("LLM_TOKEN")
 DEBUG = bool(os.environ.get("DEBUG"))
 ADMIN_CHAT = int(os.environ.get("ADMIN_CHAT") or "0")
 DATABASE_NAME = os.environ.get("DATABASE_NAME", "users.db")
-TABLE_NAME = os.environ.get("TABLE_NAME", "users")
+TABLE_NAME = "conversations"  # Фиксированное название таблицы
 MAX_CONTEXT = int(os.environ.get("MAX_CONTEXT") or "10")
 MAX_STORAGE = int(os.environ.get("MAX_STORAGE", "100"))
 DELAYED_REMINDERS_HOURS = int(os.environ.get("DELAYED_REMINDERS_HOURS") or "2")
@@ -21,7 +21,28 @@ FROM_TIME = int(os.environ.get("FROM_TIME") or "9")
 TO_TIME = int(os.environ.get("TO_TIME") or "23")
 
 
-class User:
+class Conversation:
+    """
+    Модель для хранения контекста беседы с ботом.
+
+    Используется как для личных диалогов с пользователями (id > 0),
+    так и для групповых чатов (id < 0). Название "Conversation" отражает
+    суть: это не просто пользователь, а контекст беседы с определенными
+    настройками, историей сообщений и параметрами взаимодействия.
+
+    Attributes:
+        id: Идентификатор беседы (положительный для пользователей, отрицательный для чатов)
+        name: Имя пользователя или название чата
+        prompt: Список промптов (для обратной совместимости, deprecated)
+        remind_of_yourself: Управление напоминаниями (NULL/0/timestamp)
+        sub_lvl: Уровень подписки
+        sub_id: ID подписки
+        sub_period: Период подписки
+        is_admin: Флаг администратора
+        active_messages_count: Количество активных сообщений в контексте
+        reminder_times: Список времен для напоминаний (формат HH:MM)
+        subscription_verified: Статус верификации подписки
+    """
     def __init__(
         self,
         id,
@@ -53,7 +74,7 @@ class User:
         self.subscription_verified = subscription_verified  # NULL = не проверялось, 0 = не подписан, 1 = подписан
 
     def __repr__(self):
-        return f"User(id={self.id}, \n name={self.name}, \n prompt={self.prompt}, \n remind_of_yourself={self.remind_of_yourself}, \n sub_lvl={self.sub_lvl}, \n sub_id={self.sub_id}, \n sub_period={self.sub_period}, \n is_admin={self.is_admin})"
+        return f"Conversation(id={self.id}, \n name={self.name}, \n prompt={self.prompt}, \n remind_of_yourself={self.remind_of_yourself}, \n sub_lvl={self.sub_lvl}, \n sub_id={self.sub_id}, \n sub_period={self.sub_period}, \n is_admin={self.is_admin})"
 
     async def get_from_db(self):
         async with aiosqlite.connect(DATABASE_NAME) as db:
@@ -81,7 +102,7 @@ class User:
             await cursor.execute(sql, (user_id,))
             row = await cursor.fetchone()
             if row:
-                return User(
+                return Conversation(
                     id=row[0],
                     name=row[1],
                     prompt=json.loads(row[2]),
@@ -240,14 +261,14 @@ class User:
             await cursor.close()
 
     async def delete_from_db(self):
-        """Удаляет пользователя и все его сообщения из базы данных."""
+        """Удаляет беседу и все её сообщения из базы данных."""
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
 
-            # Удаляем сообщения пользователя
+            # Удаляем сообщения беседы
             await cursor.execute("DELETE FROM messages WHERE user_id = ?", (self.id,))
 
-            # Удаляем самого пользователя
+            # Удаляем саму беседу
             await cursor.execute(f"DELETE FROM {TABLE_NAME} WHERE id = ?", (self.id,))
 
             await db.commit()
@@ -365,12 +386,12 @@ async def delete_chat_data(chat_id: int):
         )
         logger.debug(f"CHAT{chat_id}: сообщения удалены из БД")
 
-        # Удаляем запись о чате из таблицы users (если есть)
+        # Удаляем запись о чате из таблицы conversations (если есть)
         await cursor.execute(
-            "DELETE FROM users WHERE id = ?",
+            f"DELETE FROM {TABLE_NAME} WHERE id = ?",
             (chat_id,)
         )
-        logger.debug(f"CHAT{chat_id}: запись пользователя удалена из БД")
+        logger.debug(f"CHAT{chat_id}: запись беседы удалена из БД")
 
         await db.commit()
         await cursor.close()
@@ -391,7 +412,10 @@ async def check_db():
                     sub_lvl INTEGER,
                     sub_id TEXT,
                     sub_period INTEGER,
-                    is_admin INTEGER
+                    is_admin INTEGER,
+                    active_messages_count INTEGER,
+                    reminder_times TEXT DEFAULT '["19:15"]',
+                    subscription_verified INTEGER
                 )
                 """
             )
@@ -513,7 +537,7 @@ async def get_past_dates():
 
 
 async def main():
-    print(await User.get_ids_from_table())
+    print(await Conversation.get_ids_from_table())
 
 
 if __name__ == "__main__":

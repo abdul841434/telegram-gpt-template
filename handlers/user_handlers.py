@@ -9,7 +9,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from bot_instance import bot, dp
 from config import ADMIN_CHAT, MESSAGES, REQUIRED_CHANNELS, logger
-from database import User, delete_chat_data
+from database import Conversation, delete_chat_data
 from filters import OldMessage, UserNotInDB
 from handlers.subscription_handlers import send_subscription_request
 from utils import forward_to_debug
@@ -33,8 +33,8 @@ async def bot_added_to_chat(message: types.Message):
         logger.info(f"CHAT{chat_id}: бот добавлен в чат '{chat_title}'")
 
         # Создаем запись чата в БД, чтобы обработчик registration не сработал
-        chat_user = User(chat_id, chat_title)
-        await chat_user.save_for_db()
+        chat_conversation = Conversation(chat_id, chat_title)
+        await chat_conversation.save_for_db()
         logger.info(f"CHAT{chat_id}: запись создана в БД")
 
         # Отправляем приветственное сообщение
@@ -91,8 +91,8 @@ async def registration(message: types.Message):
         else (user.username if user and user.username else "Not_of_registration")
     )
 
-    user = User(int(message.chat.id), user_name)
-    await user.save_for_db()
+    conversation = Conversation(int(message.chat.id), user_name)
+    await conversation.save_for_db()
     builder = ReplyKeyboardBuilder()
 
     sent_msg = await message.answer(
@@ -119,11 +119,11 @@ async def cmd_start(message: types.Message):
 
     # Проверяем статус подписки, если есть обязательные каналы
     if REQUIRED_CHANNELS and message.chat.id != ADMIN_CHAT:
-        user = User(message.chat.id)
-        await user.get_from_db()
+        conversation = Conversation(message.chat.id)
+        await conversation.get_from_db()
 
         # Если пользователь не подписан (0) или подписка не проверялась (None), показываем сообщение
-        if user.subscription_verified != 1:
+        if conversation.subscription_verified != 1:
             await send_subscription_request(message.chat.id)
 
     # Не пересылаем сообщения из админ-чата в админ-чат
@@ -186,11 +186,11 @@ async def cmd_forget(message: types.Message):
     sent_msg = await message.answer(
         MESSAGES["msg_forget"], reply_markup=ReplyKeyboardRemove()
     )
-    user = User(message.chat.id)
-    await user.get_from_db()
-    user.remind_of_yourself = "0"
-    user.active_messages_count = 0  # Не передавать сообщения в контекст
-    await user.update_in_db()
+    conversation = Conversation(message.chat.id)
+    await conversation.get_from_db()
+    conversation.remind_of_yourself = "0"
+    conversation.active_messages_count = 0  # Не передавать сообщения в контекст
+    await conversation.update_in_db()
 
     # Не пересылаем сообщения из админ-чата в админ-чат
     if message.chat.id != ADMIN_CHAT:
@@ -204,10 +204,10 @@ async def cmd_mute(message: types.Message):
     sent_msg = await message.answer(
         MESSAGES["msg_mute"], reply_markup=ReplyKeyboardRemove()
     )
-    user = User(message.chat.id)
-    await user.get_from_db()
-    user.remind_of_yourself = "0"
-    await user.update_in_db()
+    conversation = Conversation(message.chat.id)
+    await conversation.get_from_db()
+    conversation.remind_of_yourself = "0"
+    await conversation.update_in_db()
 
     # Не пересылаем сообщения из админ-чата в админ-чат
     if message.chat.id != ADMIN_CHAT:

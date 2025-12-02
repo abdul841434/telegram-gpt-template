@@ -13,7 +13,7 @@ from aiogram.types import BufferedInputFile, ReplyKeyboardRemove
 
 from bot_instance import bot, dp
 from config import ADMIN_CHAT, MESSAGES, logger
-from database import User
+from database import Conversation
 from filters import UserIsAdmin
 from services.stats_service import generate_user_stats
 from services.subscription_service import is_user_subscribed_to_all
@@ -67,7 +67,7 @@ async def cmd_dispatch_all_input_text(message: types.Message, state: FSMContext)
     from aiogram.exceptions import TelegramForbiddenError
 
     try:
-        all_ids = await User.get_ids_from_table()
+        all_ids = await Conversation.get_ids_from_table()
         success_dispatch = 0
         blocked_users = 0
 
@@ -77,8 +77,8 @@ async def cmd_dispatch_all_input_text(message: types.Message, state: FSMContext)
                 success_dispatch += 1
             except TelegramForbiddenError:
                 # Пользователь заблокировал бота - удаляем из БД
-                user = User(user_id)
-                await user.delete_from_db()
+                conversation = Conversation(user_id)
+                await conversation.delete_from_db()
                 blocked_users += 1
                 logger.info(f"USER{user_id} заблокировал бота, удален из БД")
             except Exception as e:
@@ -194,7 +194,7 @@ async def cmd_stats(message: types.Message):
             sub_status_msg = await message.answer("⏳ Проверяю подписки пользователей и чатов на каналы...")
 
             try:
-                all_user_ids = await User.get_ids_from_table()
+                all_user_ids = await Conversation.get_ids_from_table()
                 # Фильтруем только личных пользователей (положительные ID)
                 user_ids = [uid for uid in all_user_ids if uid > 0]
 
@@ -205,11 +205,11 @@ async def cmd_stats(message: types.Message):
                 # ========== ПРОВЕРКА ЛИЧНЫХ ПОЛЬЗОВАТЕЛЕЙ ==========
                 for uid in user_ids:
                     try:
-                        user = User(uid)
-                        await user.get_from_db()
+                        conversation = Conversation(uid)
+                        await conversation.get_from_db()
 
                         # Сохраняем старый статус для определения отписавшихся
-                        old_status = user.subscription_verified
+                        old_status = conversation.subscription_verified
 
                         # Проверяем подписку для ВСЕХ пользователей
                         is_subscribed = await is_user_subscribed_to_all(bot, uid)
@@ -228,8 +228,8 @@ async def cmd_stats(message: types.Message):
                                 logger.info(f"USER{uid}: отписался от канала")
 
                         # Обновляем в БД
-                        user.subscription_verified = new_status
-                        await user.update_in_db()
+                        conversation.subscription_verified = new_status
+                        await conversation.update_in_db()
 
                         # Логируем если статус изменился
                         if old_status != new_status:
@@ -366,10 +366,10 @@ async def cmd_set_reminder_times_input(message: types.Message, state: FSMContext
                 reminder_times.append(time_str)
 
         # Обновляем пользователя в БД
-        user = User(user_id)
-        await user.get_from_db()
-        user.reminder_times = reminder_times
-        await user.update_in_db()
+        conversation = Conversation(user_id)
+        await conversation.get_from_db()
+        conversation.reminder_times = reminder_times
+        await conversation.update_in_db()
 
         times_display = ", ".join(reminder_times)
         success_msg = f"✅ Времена напоминаний для USER{user_id} обновлены: {times_display}"
@@ -429,8 +429,8 @@ async def cmd_send_reminders(message: types.Message):
                 await asyncio.sleep(0.05)
             except TelegramForbiddenError:
                 # Пользователь заблокировал бота - удаляем из БД
-                user = User(user_id)
-                await user.delete_from_db()
+                conversation = Conversation(user_id)
+                await conversation.delete_from_db()
                 blocked_count += 1
                 logger.info(f"USER{user_id} заблокировал бота, удален из БД")
             except Exception as e:

@@ -15,7 +15,7 @@ from config import (
     FULL_LEVEL,
     logger,
 )
-from database import User
+from database import Conversation
 from services.llm_client import send_image_to_vision_model, send_request_to_openrouter
 
 
@@ -41,7 +41,7 @@ def log_prompt(chat_id: int, prompt: list[dict], prompt_type: str = "MESSAGE"):
     )
 
 
-async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None, User]:
+async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None, Conversation]:
     """
     Получает ответ от LLM БЕЗ сохранения в контекст.
 
@@ -55,12 +55,12 @@ async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None,
     Returns:
         (ответ от LLM, объект пользователя) или (None, объект пользователя) при ошибке
     """
-    user = User(chat_id)
-    await user.get_from_db()
+    conversation = Conversation(chat_id)
+    await conversation.get_from_db()
 
     # ВАЖНО: Получаем контекст ДО сохранения текущего сообщения
     # Чтобы текущее сообщение не попало в контекст дважды
-    context_messages = await user.get_context_for_llm()
+    context_messages = await conversation.get_context_for_llm()
 
     # Формируем системный промпт с подстановкой данных
     current_date = datetime.now(timezone(timedelta(hours=3))).strftime(
@@ -69,8 +69,8 @@ async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None,
     system_content = DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date)
 
     # Добавляем имя пользователя если оно есть и не "Not_of_registration"
-    if user.name and user.name != "Not_of_registration":
-        username_info = f"6. Имя пользователя: {user.name}"
+    if conversation.name and conversation.name != "Not_of_registration":
+        username_info = f"6. Имя пользователя: {conversation.name}"
         system_content = system_content.replace("{USERNAME}", username_info)
     else:
         system_content = system_content.replace("{USERNAME}", "")
@@ -104,20 +104,20 @@ async def get_llm_response(chat_id: int, message_text: str) -> tuple[str | None,
         llm_msg = await send_request_to_openrouter(prompt_for_request)
     except Exception as e:
         logger.error(f"LLM{chat_id} - Критическая ошибка: {e}", exc_info=True)
-        return None, user
+        return None, conversation
 
     if llm_msg is None or llm_msg.strip() == "":
         logger.error(f"LLM{chat_id} - пустой ответ от LLM")
-        return None, user
+        return None, conversation
 
     logger.debug(f"LLM_RAWOUTPUT{chat_id}:{llm_msg}")
 
-    return llm_msg, user
+    return llm_msg, conversation
 
 
 async def save_to_context_and_format(
     chat_id: int,
-    user: User,
+    conversation: Conversation,
     user_message: str,
     llm_response: str
 ) -> str:
@@ -128,7 +128,7 @@ async def save_to_context_and_format(
 
     Args:
         chat_id: ID чата пользователя
-        user: Объект пользователя
+        conversation: Объект беседы
         user_message: Исходное сообщение пользователя
         llm_response: Ответ от LLM
 
@@ -136,8 +136,8 @@ async def save_to_context_and_format(
         Отформатированный ответ для Telegram
     """
     # Сохраняем сообщение пользователя и ответ в историю
-    await user.update_prompt("user", user_message)
-    await user.update_prompt("assistant", llm_response)
+    await conversation.update_prompt("user", user_message)
+    await conversation.update_prompt("assistant", llm_response)
 
     # Конвертируем в Telegram Markdown
     converted = telegramify_markdown.markdownify(
@@ -148,12 +148,12 @@ async def save_to_context_and_format(
 
     # Увеличиваем счетчик активных сообщений (если он используется)
     # +2 потому что добавили пару: user message + assistant message
-    if user.active_messages_count is not None:
-        user.active_messages_count += 2
-        logger.debug(f"USER{chat_id} active_messages_count увеличен до {user.active_messages_count}")
+    if conversation.active_messages_count is not None:
+        conversation.active_messages_count += 2
+        logger.debug(f"USER{chat_id} active_messages_count увеличен до {conversation.active_messages_count}")
 
     # remind_of_yourself обновляется только при отправке напоминания (в reminder_service.py)
-    await user.update_in_db()
+    await conversation.update_in_db()
 
     return converted
 
@@ -335,18 +335,18 @@ async def process_user_video(
         combined_description = "\n\n".join(frame_descriptions)
 
         # Отправляем описания кадров в основную LLM для анализа процесса
-        user = User(chat_id)
-        await user.get_from_db()
+        conversation = Conversation(chat_id)
+        await conversation.get_from_db()
 
-        context_messages = await user.get_context_for_llm()
+        context_messages = await conversation.get_context_for_llm()
 
         current_date = datetime.now(timezone(timedelta(hours=3))).strftime(
             "%Y-%m-%d %H:%M:%S"
         )
         system_content = DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date)
 
-        if user.name and user.name != "Not_of_registration":
-            username_info = f"6. Имя пользователя: {user.name}"
+        if conversation.name and conversation.name != "Not_of_registration":
+            username_info = f"6. Имя пользователя: {conversation.name}"
             system_content = system_content.replace("{USERNAME}", username_info)
         else:
             system_content = system_content.replace("{USERNAME}", "")
@@ -393,8 +393,8 @@ async def process_user_video(
 
         # Сохраняем в историю как сообщение от пользователя и ответ бота
         # Сохраняем исходный промпт с описаниями кадров
-        await user.update_prompt("user", video_analysis_prompt)
-        await user.update_prompt("assistant", llm_msg)
+        await conversation.update_prompt("user", video_analysis_prompt)
+        await conversation.update_prompt("assistant", llm_msg)
         logger.debug(f"LLM_RAWOUTPUT{chat_id}:{llm_msg}")
 
         # Конвертируем в Telegram Markdown
@@ -405,11 +405,11 @@ async def process_user_video(
         )
 
         # Увеличиваем счетчик активных сообщений
-        if user.active_messages_count is not None:
-            user.active_messages_count += 2
-            logger.debug(f"USER{chat_id} active_messages_count увеличен до {user.active_messages_count}")
+        if conversation.active_messages_count is not None:
+            conversation.active_messages_count += 2
+            logger.debug(f"USER{chat_id} active_messages_count увеличен до {conversation.active_messages_count}")
 
-        await user.update_in_db()
+        await conversation.update_in_db()
 
         return converted
 

@@ -9,7 +9,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot_instance import bot, dp
 from config import MESSAGES, REQUIRED_CHANNELS, TIMEZONE_OFFSET, logger
-from database import ChatVerification, User
+from database import ChatVerification, Conversation
 from services.subscription_service import is_user_subscribed_to_all
 from utils import is_private_chat
 
@@ -123,10 +123,10 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
             else:
                 # === ЛИЧНЫЙ ЧАТ ===
                 # Обновляем статус в БД
-                user = User(user_id)
-                await user.get_from_db()
-                user.subscription_verified = 1
-                await user.update_in_db()
+                conversation = Conversation(user_id)
+                await conversation.get_from_db()
+                conversation.subscription_verified = 1
+                await conversation.update_in_db()
 
                 # Удаляем сообщение с просьбой подписаться
                 await callback_query.message.delete()

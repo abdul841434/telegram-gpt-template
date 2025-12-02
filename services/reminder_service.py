@@ -18,7 +18,7 @@ from config import (
     TIMEZONE_OFFSET,
     logger,
 )
-from database import User, delete_chat_data
+from database import Conversation, delete_chat_data
 from services.llm_client import send_request_to_openrouter
 from services.llm_service import log_prompt
 from utils import forward_to_debug
@@ -52,11 +52,11 @@ async def send_reminder_to_user(user_id: int):
     Args:
         user_id: ID пользователя
     """
-    user = User(user_id)
-    await user.get_from_db()
+    conversation = Conversation(user_id)
+    await conversation.get_from_db()
 
     # Подготавливаем контекст (только последние MAX_CONTEXT сообщений)
-    context_messages = await user.get_context_for_llm()
+    context_messages = await conversation.get_context_for_llm()
 
     # Получаем текущую дату и день недели
     now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
@@ -65,8 +65,8 @@ async def send_reminder_to_user(user_id: int):
 
     # Формируем информацию об имени пользователя если она доступна
     username_replacement = ""
-    if user.name and user.name != "Not_of_registration":
-        username_replacement = f"Имя пользователя: {user.name}"
+    if conversation.name and conversation.name != "Not_of_registration":
+        username_replacement = f"Имя пользователя: {conversation.name}"
 
     # Выбираем случайный тип напоминания
     reminder_type = random.choice(list(REMINDER_PROMPTS.keys()))
@@ -151,8 +151,8 @@ async def send_reminder_to_user(user_id: int):
                         logger.error(f"CHAT{user_id}: ошибка при удалении данных - {e}", exc_info=True)
                 else:
                     # Это пользователь - отключаем напоминания
-                    user.remind_of_yourself = 0
-                    await user.update_in_db()
+                    conversation.remind_of_yourself = 0
+                    await conversation.update_in_db()
                     logger.warning(f"USER{user_id} заблокировал чатбота")
                 raise  # Выбрасываем исключение для корректного подсчета
             except Exception as e:
@@ -170,13 +170,13 @@ async def send_reminder_to_user(user_id: int):
             start += 4096
 
         # Сохраняем ответ в историю ПОСЛЕ успешной отправки
-        await user.update_prompt("assistant", llm_msg)
+        await conversation.update_prompt("assistant", llm_msg)
         logger.debug(f"LLM_RAWOUTPUT{user_id}:{llm_msg}")
 
         # Обновляем время последнего напоминания (используется для предотвращения дублей)
         now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
-        user.remind_of_yourself = now_msk.strftime("%Y-%m-%d %H:%M:%S")
-        await user.update_in_db()
+        conversation.remind_of_yourself = now_msk.strftime("%Y-%m-%d %H:%M:%S")
+        await conversation.update_in_db()
 
         logger.info(f"LLM{user_id}REMINDER[{reminder_type.upper()}] - {generated_message.text}")
 

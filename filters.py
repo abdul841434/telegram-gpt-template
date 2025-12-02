@@ -9,7 +9,7 @@ from aiogram.filters import Filter
 
 import database
 from config import ADMIN_CHAT, FULL_LEVEL, logger
-from database import User
+from database import Conversation
 
 
 class UserNotInDB(Filter):
@@ -27,11 +27,11 @@ class UserHaveSubLevel(Filter):
         self.required_sub_lvl = required_sub_lvl
 
     async def __call__(self, message: types.Message) -> bool:
-        user = User(message.chat.id)
-        await user.get_from_db()
+        conversation = Conversation(message.chat.id)
+        await conversation.get_from_db()
 
-        if user:
-            return user.sub_lvl >= self.required_sub_lvl
+        if conversation:
+            return conversation.sub_lvl >= self.required_sub_lvl
         return False
 
 

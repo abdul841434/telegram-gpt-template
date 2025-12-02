@@ -10,7 +10,7 @@ from aiogram.exceptions import TelegramForbiddenError
 
 from bot_instance import bot, dp
 from config import ADMIN_CHAT, MESSAGES, logger
-from database import User
+from database import Conversation
 from services.llm_service import (
     get_llm_response,
     process_user_image,
@@ -37,8 +37,8 @@ async def handle_text_message(message: types.Message):
     await forward_to_debug(message.chat.id, message.message_id)
 
     # Обновляем имя пользователя в базе данных (если изменилось)
-    user_obj = User(message.chat.id)
-    await user_obj.get_from_db()
+    conversation = Conversation(message.chat.id)
+    await conversation.get_from_db()
     if message.from_user:
         new_name = (
             message.from_user.first_name
@@ -49,9 +49,9 @@ async def handle_text_message(message: types.Message):
                 else "Not_of_registration"
             )
         )
-        if user_obj.name != new_name and new_name != "Not_of_registration":
-            user_obj.name = new_name
-            await user_obj.update_in_db()
+        if conversation.name != new_name and new_name != "Not_of_registration":
+            conversation.name = new_name
+            await conversation.update_in_db()
             logger.debug(f"USER{message.chat.id} имя обновлено: {new_name}")
 
     # Добавляем сообщение в буфер
@@ -129,8 +129,8 @@ async def handle_text_message(message: types.Message):
                             )
                             await forward_to_debug(message.chat.id, generated_message.message_id)
                         except TelegramForbiddenError:
-                            user.remind_of_yourself = 0
-                            await user.update_in_db()
+                            conversation.remind_of_yourself = 0
+                            await conversation.update_in_db()
                             logger.warning(f"USER{message.chat.id} заблокировал чатбота")
                             return
                         except Exception as e:
@@ -190,8 +190,8 @@ async def handle_photo_message(message: types.Message):
     await forward_to_debug(message.chat.id, message.message_id)
 
     # Обновляем имя пользователя в базе данных (если изменилось)
-    user_obj = User(message.chat.id)
-    await user_obj.get_from_db()
+    conversation = Conversation(message.chat.id)
+    await conversation.get_from_db()
     if message.from_user:
         new_name = (
             message.from_user.first_name
@@ -202,9 +202,9 @@ async def handle_photo_message(message: types.Message):
                 else "Not_of_registration"
             )
         )
-        if user_obj.name != new_name and new_name != "Not_of_registration":
-            user_obj.name = new_name
-            await user_obj.update_in_db()
+        if conversation.name != new_name and new_name != "Not_of_registration":
+            conversation.name = new_name
+            await conversation.update_in_db()
             logger.debug(f"USER{message.chat.id} имя обновлено: {new_name}")
 
     # Запускаем индикатор печати
@@ -243,10 +243,10 @@ async def handle_photo_message(message: types.Message):
                 )
                 await forward_to_debug(message.chat.id, generated_message.message_id)
             except TelegramForbiddenError:
-                user = User(message.chat.id)
-                await user.get_from_db()
-                user.remind_of_yourself = 0
-                await user.update_in_db()
+                conversation = Conversation(message.chat.id)
+                await conversation.get_from_db()
+                conversation.remind_of_yourself = 0
+                await conversation.update_in_db()
                 logger.warning(f"USER{message.chat.id} заблокировал чатбота")
                 return
             except Exception as e:
@@ -286,8 +286,8 @@ async def handle_video_message(message: types.Message):
     await forward_to_debug(message.chat.id, message.message_id)
 
     # Обновляем имя пользователя в базе данных (если изменилось)
-    user_obj = User(message.chat.id)
-    await user_obj.get_from_db()
+    conversation = Conversation(message.chat.id)
+    await conversation.get_from_db()
     if message.from_user:
         new_name = (
             message.from_user.first_name
@@ -298,9 +298,9 @@ async def handle_video_message(message: types.Message):
                 else "Not_of_registration"
             )
         )
-        if user_obj.name != new_name and new_name != "Not_of_registration":
-            user_obj.name = new_name
-            await user_obj.update_in_db()
+        if conversation.name != new_name and new_name != "Not_of_registration":
+            conversation.name = new_name
+            await conversation.update_in_db()
             logger.debug(f"USER{message.chat.id} имя обновлено: {new_name}")
 
     # Запускаем индикатор печати
@@ -346,10 +346,10 @@ async def handle_video_message(message: types.Message):
                 )
                 await forward_to_debug(message.chat.id, generated_message.message_id)
             except TelegramForbiddenError:
-                user = User(message.chat.id)
-                await user.get_from_db()
-                user.remind_of_yourself = 0
-                await user.update_in_db()
+                conversation = Conversation(message.chat.id)
+                await conversation.get_from_db()
+                conversation.remind_of_yourself = 0
+                await conversation.update_in_db()
                 logger.warning(f"USER{message.chat.id} заблокировал чатбота")
                 return
             except Exception as e:

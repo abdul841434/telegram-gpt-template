@@ -8,7 +8,7 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
 from config import REQUIRED_CHANNELS, logger
-from database import ChatVerification, User
+from database import ChatVerification, Conversation
 
 
 async def check_user_subscription(bot: Bot, user_id: int, channels: list[str] = None) -> dict[str, bool]:
@@ -104,16 +104,16 @@ async def update_user_subscription_status(bot: Bot, user_id: int) -> bool:
     Returns:
         True если пользователь подписан на все каналы, False иначе
     """
-    user = User(user_id)
-    await user.get_from_db()
+    conversation = Conversation(user_id)
+    await conversation.get_from_db()
 
     is_subscribed = await is_user_subscribed_to_all(bot, user_id)
 
     # Обновляем статус в БД
-    user.subscription_verified = 1 if is_subscribed else 0
-    await user.update_in_db()
+    conversation.subscription_verified = 1 if is_subscribed else 0
+    await conversation.update_in_db()
 
-    logger.info(f"USER{user_id}: статус подписки обновлен в БД: {user.subscription_verified}")
+    logger.info(f"USER{user_id}: статус подписки обновлен в БД: {conversation.subscription_verified}")
 
     return is_subscribed
 
@@ -133,24 +133,24 @@ async def subscription_check_loop(bot: Bot):
     while True:
         try:
             # ========== ПРОВЕРКА ЛИЧНЫХ ПОЛЬЗОВАТЕЛЕЙ ==========
-            all_user_ids = await User.get_ids_from_table()
+            all_user_ids = await Conversation.get_ids_from_table()
             user_ids = [uid for uid in all_user_ids if uid > 0]
             logger.info(f"Проверка подписок для {len(user_ids)} пользователей")
 
             for user_id in user_ids:
                 try:
-                    user = User(user_id)
-                    await user.get_from_db()
+                    conversation = Conversation(user_id)
+                    await conversation.get_from_db()
 
                     # Проверяем подписку для всех пользователей
                     is_subscribed = await is_user_subscribed_to_all(bot, user_id)
                     new_status = 1 if is_subscribed else 0
 
                     # Логируем только если статус изменился
-                    if user.subscription_verified != new_status:
-                        logger.info(f"USER{user_id}: статус подписки изменился с {user.subscription_verified} на {new_status}")
-                        user.subscription_verified = new_status
-                        await user.update_in_db()
+                    if conversation.subscription_verified != new_status:
+                        logger.info(f"USER{user_id}: статус подписки изменился с {conversation.subscription_verified} на {new_status}")
+                        conversation.subscription_verified = new_status
+                        await conversation.update_in_db()
 
                 except Exception as e:
                     logger.error(f"Ошибка при проверке подписки USER{user_id}: {e}", exc_info=True)

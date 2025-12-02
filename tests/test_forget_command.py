@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import aiosqlite
 
-from database import User
+from database import Conversation
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ async def test_db():
     # Создаем БД и таблицы
     async with aiosqlite.connect(test_db_name) as db:
         await db.execute("""
-            CREATE TABLE IF NOT EXISTS users (
+            CREATE TABLE IF NOT EXISTS conversations (
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 prompt JSON,
@@ -60,7 +60,7 @@ async def test_db():
     original_db = database.DATABASE_NAME
     original_table = database.TABLE_NAME
     database.DATABASE_NAME = test_db_name
-    database.TABLE_NAME = "users"  # Убеждаемся что имя таблицы установлено
+    database.TABLE_NAME = "conversations"  # Убеждаемся что имя таблицы установлено
 
     yield test_db_name
 
@@ -80,23 +80,23 @@ async def test_forget_first_message_in_context(test_db):
     test_user_id = 12345
 
     # Создаем пользователя
-    user = User(test_user_id, name="TestUser")
-    await user.save_for_db()
+    conversation = Conversation(test_user_id, name="TestUser")
+    await conversation.save_for_db()
 
     # Эмулируем команду /forget
-    user = User(test_user_id)
-    await user.get_from_db()
-    user.active_messages_count = 0
-    await user.update_in_db()
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
+    conversation.active_messages_count = 0
+    await conversation.update_in_db()
 
     # Первое сообщение после /forget
     message1 = "Привет! Меня зовут Тест."
 
-    user = User(test_user_id)
-    await user.get_from_db()
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
 
     # Получаем контекст (должен быть пустым)
-    context_before = await user.get_context_for_llm()
+    context_before = await conversation.get_context_for_llm()
     assert len(context_before) == 0, "Контекст должен быть пустым при active_messages_count = 0"
 
     # Формируем промпт как в реальном коде
@@ -123,35 +123,35 @@ async def test_forget_second_message_has_context(test_db):
     test_user_id = 23456
 
     # Создаем пользователя и эмулируем /forget
-    user = User(test_user_id, name="TestUser2")
-    await user.save_for_db()
+    conversation = Conversation(test_user_id, name="TestUser2")
+    await conversation.save_for_db()
 
-    user = User(test_user_id)
-    await user.get_from_db()
-    user.active_messages_count = 0
-    await user.update_in_db()
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
+    conversation.active_messages_count = 0
+    await conversation.update_in_db()
 
     # Первое сообщение
     message1 = "Привет! Меня зовут Тест."
     llm_response1 = "Привет, Тест! Рад познакомиться!"
 
     # Сохраняем первую пару сообщений
-    user = User(test_user_id)
-    await user.get_from_db()
-    await user.update_prompt("user", message1)
-    await user.update_prompt("assistant", llm_response1)
-    if user.active_messages_count is not None:
-        user.active_messages_count += 2
-    await user.update_in_db()
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
+    await conversation.update_prompt("user", message1)
+    await conversation.update_prompt("assistant", llm_response1)
+    if conversation.active_messages_count is not None:
+        conversation.active_messages_count += 2
+    await conversation.update_in_db()
 
     # Второе сообщение
     message2 = "Как меня зовут?"
 
-    user = User(test_user_id)
-    await user.get_from_db()
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
 
     # Получаем контекст (должен содержать предыдущую пару)
-    context_before = await user.get_context_for_llm()
+    context_before = await conversation.get_context_for_llm()
     assert len(context_before) == 2, "Контекст должен содержать 2 сообщения"
     assert context_before[0]["role"] == "user", "Первое сообщение должно быть от user"
     assert context_before[0]["content"] == message1, "Содержимое первого сообщения должно совпадать"
@@ -182,41 +182,41 @@ async def test_forget_counter_increments(test_db):
     test_user_id = 34567
 
     # Создаем пользователя
-    user = User(test_user_id, name="TestUser3")
-    await user.save_for_db()
+    conversation = Conversation(test_user_id, name="TestUser3")
+    await conversation.save_for_db()
 
     # Эмулируем /forget
-    user = User(test_user_id)
-    await user.get_from_db()
-    user.active_messages_count = 0
-    await user.update_in_db()
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
+    conversation.active_messages_count = 0
+    await conversation.update_in_db()
 
     # Проверяем начальное значение
-    user = User(test_user_id)
-    await user.get_from_db()
-    assert user.active_messages_count == 0, "После /forget счетчик должен быть 0"
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
+    assert conversation.active_messages_count == 0, "После /forget счетчик должен быть 0"
 
     # Первая пара сообщений
-    await user.update_prompt("user", "Сообщение 1")
-    await user.update_prompt("assistant", "Ответ 1")
-    if user.active_messages_count is not None:
-        user.active_messages_count += 2
-    await user.update_in_db()
+    await conversation.update_prompt("user", "Сообщение 1")
+    await conversation.update_prompt("assistant", "Ответ 1")
+    if conversation.active_messages_count is not None:
+        conversation.active_messages_count += 2
+    await conversation.update_in_db()
 
-    user = User(test_user_id)
-    await user.get_from_db()
-    assert user.active_messages_count == 2, "После первой пары счетчик должен быть 2"
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
+    assert conversation.active_messages_count == 2, "После первой пары счетчик должен быть 2"
 
     # Вторая пара сообщений
-    await user.update_prompt("user", "Сообщение 2")
-    await user.update_prompt("assistant", "Ответ 2")
-    if user.active_messages_count is not None:
-        user.active_messages_count += 2
-    await user.update_in_db()
+    await conversation.update_prompt("user", "Сообщение 2")
+    await conversation.update_prompt("assistant", "Ответ 2")
+    if conversation.active_messages_count is not None:
+        conversation.active_messages_count += 2
+    await conversation.update_in_db()
 
-    user = User(test_user_id)
-    await user.get_from_db()
-    assert user.active_messages_count == 4, "После второй пары счетчик должен быть 4"
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
+    assert conversation.active_messages_count == 4, "После второй пары счетчик должен быть 4"
 
 
 @pytest.mark.asyncio
@@ -228,22 +228,22 @@ async def test_forget_messages_saved_in_db(test_db):
     test_user_id = 45678
 
     # Создаем пользователя
-    user = User(test_user_id, name="TestUser4")
-    await user.save_for_db()
+    conversation = Conversation(test_user_id, name="TestUser4")
+    await conversation.save_for_db()
 
     # Добавляем несколько сообщений до /forget
-    await user.update_prompt("user", "Старое сообщение 1")
-    await user.update_prompt("assistant", "Старый ответ 1")
+    await conversation.update_prompt("user", "Старое сообщение 1")
+    await conversation.update_prompt("assistant", "Старый ответ 1")
 
     # Эмулируем /forget
-    user = User(test_user_id)
-    await user.get_from_db()
-    user.active_messages_count = 0
-    await user.update_in_db()
+    conversation = Conversation(test_user_id)
+    await conversation.get_from_db()
+    conversation.active_messages_count = 0
+    await conversation.update_in_db()
 
     # Добавляем новые сообщения
-    await user.update_prompt("user", "Новое сообщение 1")
-    await user.update_prompt("assistant", "Новый ответ 1")
+    await conversation.update_prompt("user", "Новое сообщение 1")
+    await conversation.update_prompt("assistant", "Новый ответ 1")
 
     # Проверяем что все сообщения в БД
     async with aiosqlite.connect(test_db) as db:
@@ -256,5 +256,5 @@ async def test_forget_messages_saved_in_db(test_db):
     assert count == 4, "Все 4 сообщения должны быть сохранены в БД"
 
     # Но в контекст попадают только последние 2
-    context = await user.get_context_for_llm()
+    context = await conversation.get_context_for_llm()
     assert len(context) == 0, "Контекст должен быть пустым при active_messages_count = 0"
