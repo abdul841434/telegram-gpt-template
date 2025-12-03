@@ -6,7 +6,11 @@ import asyncio
 
 from aiogram import types
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramMigrateToChat
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramMigrateToChat,
+)
 
 from bot_instance import bot
 from config import ADMIN_CHAT, MESSAGES_LEVEL, logger
@@ -362,8 +366,9 @@ async def send_message_with_fallback(
     Отправляет сообщение с MARKDOWN_V2 форматированием.
 
     Стратегия при ошибке:
-    1. Пробует исправить вложенные markdown теги
-    2. Если не помогло - отправляет без форматирования (с видимыми экранирующими символами)
+    1. Если бот заблокирован (Forbidden) - сразу пробрасываем ошибку
+    2. Если ошибка парсинга markdown - пробуем исправить и отправить снова
+    3. Если не помогло - отправляем без форматирования
 
     Args:
         chat_id: ID чата для отправки
@@ -374,37 +379,55 @@ async def send_message_with_fallback(
         Отправленное сообщение
 
     Raises:
+        TelegramForbiddenError: Если бот заблокирован пользователем
         Exception: Если не удалось отправить сообщение ни одним способом
     """
     try:
         return await bot.send_message(
             chat_id=chat_id, text=text, parse_mode=ParseMode.MARKDOWN_V2, **kwargs
         )
-    except Exception as e:
-        # Шаг 1: Пробуем исправить markdown и отправить снова
-        try:
-            logger.warning(
-                f"CHAT{chat_id} - ошибка парсинга Markdown: {e}. "
-                f"Пробуем исправить вложенные теги..."
-            )
-            fixed_text = fix_nested_markdown(text)
-
-            return await bot.send_message(
-                chat_id=chat_id, text=fixed_text, parse_mode=ParseMode.MARKDOWN_V2, **kwargs
-            )
-        except Exception as e2:
-            # Шаг 2: Отправляем без форматирования (с видимым экранированием)
+    except TelegramForbiddenError:
+        # Бот заблокирован - сразу пробрасываем, не пытаемся исправить markdown
+        raise
+    except TelegramBadRequest as e:
+        # Проверяем, это ошибка парсинга markdown или что-то другое
+        error_message = str(e).lower()
+        if "can't parse entities" in error_message or "can't find end" in error_message:
+            # Это ошибка парсинга - пробуем исправить
             try:
                 logger.warning(
-                    f"CHAT{chat_id} - исправление не помогло: {e2}. "
-                    f"Отправляем без форматирования."
+                    f"CHAT{chat_id} - ошибка парсинга Markdown: {e}. "
+                    f"Пробуем исправить markdown..."
                 )
-                # Убираем parse_mode из kwargs если он там есть
-                kwargs.pop("parse_mode", None)
-                return await bot.send_message(chat_id=chat_id, text=text, **kwargs)
-            except Exception:
-                # Если и это не сработало - пробрасываем исходную ошибку
-                logger.error(
-                    f"CHAT{chat_id} - не удалось отправить сообщение ни одним способом: {e}"
+                fixed_text = fix_nested_markdown(text)
+
+                return await bot.send_message(
+                    chat_id=chat_id, text=fixed_text, parse_mode=ParseMode.MARKDOWN_V2, **kwargs
                 )
+            except TelegramForbiddenError:
+                # Даже после исправления получили Forbidden - пробрасываем
                 raise
+            except Exception as e2:
+                # Исправление не помогло - отправляем без форматирования
+                try:
+                    logger.warning(
+                        f"CHAT{chat_id} - исправление не помогло: {e2}. "
+                        f"Отправляем без форматирования."
+                    )
+                    kwargs.pop("parse_mode", None)
+                    return await bot.send_message(chat_id=chat_id, text=text, **kwargs)
+                except TelegramForbiddenError:
+                    # И здесь Forbidden - пробрасываем
+                    raise
+                except Exception:
+                    # Если и это не сработало - пробрасываем исходную ошибку
+                    logger.error(
+                        f"CHAT{chat_id} - не удалось отправить сообщение: {e}"
+                    )
+                    raise
+        else:
+            # Это не ошибка парсинга - пробрасываем как есть
+            raise
+    except Exception:
+        # Любая другая ошибка - пробрасываем
+        raise
