@@ -27,9 +27,9 @@ async def upgrade():
             "Unknown Chat",
             "Unknown chat",
         ]
-        
+
         total_updated = 0
-        
+
         for placeholder in legacy_placeholders:
             # Заменяем устаревшие placeholder'ы на пустую строку
             cursor = await db.execute(
@@ -38,12 +38,12 @@ async def upgrade():
             )
             updated_count = cursor.rowcount
             total_updated += updated_count
-            
+
             if updated_count > 0:
                 print(f"   Обновлено {updated_count} записей с именем '{placeholder}'")
-        
+
         await db.commit()
-        
+
         if total_updated > 0:
             return f"Очищено {total_updated} устаревших значений имени"
         return "Устаревшие значения не найдены"
@@ -52,7 +52,7 @@ async def upgrade():
 async def downgrade():
     """
     Откатывает миграцию.
-    
+
     Примечание: откат не восстанавливает исходные значения,
     так как неизвестно какое именно значение было у каждой записи.
     """

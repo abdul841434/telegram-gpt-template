@@ -24,10 +24,10 @@ from utils import forward_to_debug, keep_typing, should_respond_in_chat
 def get_user_display_name(message: types.Message) -> str:
     """
     Получает отображаемое имя пользователя из сообщения.
-    
+
     Args:
         message: Объект сообщения Telegram
-        
+
     Returns:
         Имя пользователя (first_name -> username -> "Аноним")
     """
@@ -60,7 +60,7 @@ async def handle_text_message(message: types.Message):
     # Обновляем имя пользователя/чата в базе данных (если изменилось)
     conversation = Conversation(message.chat.id)
     await conversation.get_from_db()
-    
+
     # Определяем новое имя в зависимости от типа чата
     if message.chat.id < 0:
         # Для групповых чатов используем название чата
@@ -79,7 +79,7 @@ async def handle_text_message(message: types.Message):
             )
         else:
             new_name = ""
-    
+
     # Обновляем имя, если оно изменилось и не пустое
     if conversation.name != new_name and new_name:
         conversation.name = new_name
