@@ -176,7 +176,7 @@ async def process_user_message(chat_id: int, message_text: str) -> str | None:
 
 
 async def process_user_image(
-    chat_id: int, image_bytes: bytes, image_mime_type: str = "image/jpeg"
+    chat_id: int, image_bytes: bytes, image_mime_type: str = "image/jpeg", user_name_prefix: str = ""
 ) -> str | None:
     """
     Обрабатывает изображение от пользователя через vision модель и отправляет описание в LLM.
@@ -185,6 +185,7 @@ async def process_user_image(
         chat_id: ID чата пользователя
         image_bytes: Байты изображения
         image_mime_type: MIME-тип изображения
+        user_name_prefix: Префикс с именем пользователя для групповых чатов (например, "Nik: ")
 
     Returns:
         Отформатированный ответ от LLM или None при ошибке
@@ -209,14 +210,14 @@ async def process_user_image(
 
     # Шаг 2: Отправляем описание в основную LLM от лица пользователя
     # Формируем сообщение как будто пользователь описал картинку
-    message_text = f"[Пользователь отправил изображение. Описание изображения: {image_description}]"
+    message_text = f"{user_name_prefix}[Пользователь отправил изображение. Описание изображения: {image_description}]"
 
     # Используем существующую функцию для обработки текстового сообщения
     return await process_user_message(chat_id, message_text)
 
 
 async def process_user_video(
-    chat_id: int, video_bytes: bytes, video_duration: int | None = None
+    chat_id: int, video_bytes: bytes, video_duration: int | None = None, user_name_prefix: str = ""
 ) -> str | None:
     """
     Обрабатывает видео от пользователя через vision модель и отправляет описание в LLM.
@@ -228,6 +229,7 @@ async def process_user_video(
         chat_id: ID чата пользователя
         video_bytes: Байты видео
         video_duration: Длительность видео в секундах (опционально)
+        user_name_prefix: Префикс с именем пользователя для групповых чатов (например, "Nik: ")
 
     Returns:
         Отформатированный ответ от LLM или None при ошибке
@@ -372,7 +374,7 @@ async def process_user_video(
 
         # Формируем запрос к MODEL для анализа процесса на видео
         video_analysis_prompt = (
-            f"[Пользователь отправил видео{duration_text}. "
+            f"{user_name_prefix}[Пользователь отправил видео{duration_text}. "
             f"Вот описания трёх ключевых кадров из этого видео:\n\n"
             f"{combined_description}\n\n"
             f"На основе этих кадров опиши процесс, который происходит на видео. "

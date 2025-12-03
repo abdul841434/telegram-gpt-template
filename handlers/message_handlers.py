@@ -21,6 +21,25 @@ from services.message_buffer import message_buffer
 from utils import forward_to_debug, keep_typing, should_respond_in_chat
 
 
+def get_user_display_name(message: types.Message) -> str:
+    """
+    Получает отображаемое имя пользователя из сообщения.
+    
+    Args:
+        message: Объект сообщения Telegram
+        
+    Returns:
+        Имя пользователя (first_name -> username -> "Аноним")
+    """
+    if message.from_user:
+        return (
+            message.from_user.first_name
+            or message.from_user.username
+            or "Аноним"
+        )
+    return "Аноним"
+
+
 @dp.message(F.text & ~F.text.startswith("/"))
 async def handle_text_message(message: types.Message):
     """Обработка текстовых сообщений через LLM (исключая команды)."""
@@ -67,8 +86,16 @@ async def handle_text_message(message: types.Message):
         await conversation.update_in_db()
         logger.debug(f"{'CHAT' if message.chat.id < 0 else 'USER'}{message.chat.id} имя обновлено: {new_name}")
 
+    # Подготавливаем текст для обработки
+    # В групповых чатах добавляем имя пользователя перед сообщением
+    message_text = message.text
+    if message.chat.id < 0:
+        user_name = get_user_display_name(message)
+        message_text = f"{user_name}: {message_text}"
+        logger.debug(f"CHAT{message.chat.id}: добавлен префикс имени - {user_name}")
+
     # Добавляем сообщение в буфер
-    should_process = await message_buffer.add_message(message.chat.id, message.text)
+    should_process = await message_buffer.add_message(message.chat.id, message_text)
 
     if not should_process:
         # Обработка уже идет, сообщение добавлено в буфер
@@ -218,6 +245,13 @@ async def handle_photo_message(message: types.Message):
     conversation = Conversation(message.chat.id)
     await conversation.get_from_db()
 
+    # Формируем префикс с именем для групповых чатов
+    user_name_prefix = ""
+    if message.chat.id < 0:
+        user_name = get_user_display_name(message)
+        user_name_prefix = f"{user_name}: "
+        logger.debug(f"CHAT{message.chat.id}: добавлен префикс имени для фото - {user_name}")
+
     # Запускаем индикатор печати
     typing_task = asyncio.create_task(keep_typing(message.chat.id))
 
@@ -234,7 +268,7 @@ async def handle_photo_message(message: types.Message):
 
         # Обрабатываем изображение через vision модель и LLM
         converted_response = await process_user_image(
-            message.chat.id, image_bytes.read(), image_mime_type
+            message.chat.id, image_bytes.read(), image_mime_type, user_name_prefix
         )
 
         if converted_response is None:
@@ -300,6 +334,13 @@ async def handle_video_message(message: types.Message):
     conversation = Conversation(message.chat.id)
     await conversation.get_from_db()
 
+    # Формируем префикс с именем для групповых чатов
+    user_name_prefix = ""
+    if message.chat.id < 0:
+        user_name = get_user_display_name(message)
+        user_name_prefix = f"{user_name}: "
+        logger.debug(f"CHAT{message.chat.id}: добавлен префикс имени для видео - {user_name}")
+
     # Запускаем индикатор печати
     typing_task = asyncio.create_task(keep_typing(message.chat.id))
 
@@ -323,7 +364,7 @@ async def handle_video_message(message: types.Message):
 
         # Обрабатываем видео через vision модель и LLM
         converted_response = await process_user_video(
-            message.chat.id, video_bytes.read(), video_duration
+            message.chat.id, video_bytes.read(), video_duration, user_name_prefix
         )
 
         if converted_response is None:
