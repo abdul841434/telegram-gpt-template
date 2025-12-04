@@ -48,12 +48,12 @@ async def get_user_timestamps(user_id: int | None = None) -> list[datetime]:
         cursor = await db.cursor()
 
         if user_id is not None:
-            # Получаем данные конкретного пользователя с timestamp
-            sql = "SELECT timestamp FROM messages WHERE user_id = ? AND timestamp IS NOT NULL"
+            # Получаем данные конкретного пользователя с timestamp (только сообщения от пользователя)
+            sql = "SELECT timestamp FROM messages WHERE user_id = ? AND timestamp IS NOT NULL AND role = 'user'"
             await cursor.execute(sql, (user_id,))
         else:
-            # Получаем данные всех пользователей с timestamp
-            sql = "SELECT timestamp FROM messages WHERE timestamp IS NOT NULL"
+            # Получаем данные всех пользователей с timestamp (только сообщения от пользователей)
+            sql = "SELECT timestamp FROM messages WHERE timestamp IS NOT NULL AND role = 'user'"
             await cursor.execute(sql)
 
         rows = await cursor.fetchall()
