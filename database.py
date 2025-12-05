@@ -41,6 +41,7 @@ class Conversation:
         active_messages_count: Количество активных сообщений в контексте
         reminder_times: Список времен для напоминаний (формат HH:MM)
         subscription_verified: Статус верификации подписки
+        referral_code: Реферальный код, по которому пользователь перешел в бота
     """
 
     def __init__(
@@ -56,6 +57,7 @@ class Conversation:
         active_messages_count=None,
         reminder_times=None,
         subscription_verified=None,
+        referral_code=None,
     ):
         if prompt is None:
             prompt = []
@@ -76,6 +78,7 @@ class Conversation:
             reminder_times  # Список времен напоминаний в формате HH:MM (МСК)
         )
         self.subscription_verified = subscription_verified  # NULL = не проверялось, 0 = не подписан, 1 = подписан
+        self.referral_code = referral_code  # Реферальный код для отслеживания источника регистрации
 
     def __repr__(self):
         return f"Conversation(id={self.id}, \n name={self.name}, \n prompt={self.prompt}, \n remind_of_yourself={self.remind_of_yourself}, \n sub_lvl={self.sub_lvl}, \n sub_id={self.sub_id}, \n sub_period={self.sub_period}, \n is_admin={self.is_admin})"
@@ -100,6 +103,7 @@ class Conversation:
                     json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"]
                 )
                 self.subscription_verified = row[10] if len(row) > 10 else None
+                self.referral_code = row[11] if len(row) > 11 else None
 
     async def __call__(self, user_id):
         async with aiosqlite.connect(DATABASE_NAME) as db:
@@ -122,6 +126,7 @@ class Conversation:
                     if len(row) > 9 and row[9]
                     else ["19:15"],
                     subscription_verified=row[10] if len(row) > 10 else None,
+                    referral_code=row[11] if len(row) > 11 else None,
                 )
             return None
 
@@ -137,8 +142,8 @@ class Conversation:
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
             sql_insert = """
-                        INSERT INTO conversations (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_times, subscription_verified)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO conversations (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_times, subscription_verified, referral_code)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """
             values = (
                 self.id,
@@ -152,6 +157,7 @@ class Conversation:
                 self.active_messages_count,
                 json.dumps(self.reminder_times),
                 self.subscription_verified,
+                self.referral_code,
             )
             await cursor.execute(sql_insert, values)
             await db.commit()
@@ -243,7 +249,7 @@ class Conversation:
             cursor = await db.cursor()
             sql_query = """
                 UPDATE conversations
-                SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?, reminder_times = ?, subscription_verified = ?
+                SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?, reminder_times = ?, subscription_verified = ?, referral_code = ?
                 WHERE id = ?
             """
             values = (
@@ -257,6 +263,7 @@ class Conversation:
                 self.active_messages_count,
                 json.dumps(self.reminder_times),
                 self.subscription_verified,
+                self.referral_code,
                 self.id,
             )
             await cursor.execute(sql_query, values)
@@ -417,7 +424,8 @@ async def check_db():
                     is_admin INTEGER,
                     active_messages_count INTEGER,
                     reminder_times TEXT DEFAULT '["19:15"]',
-                    subscription_verified INTEGER
+                    subscription_verified INTEGER,
+                    referral_code TEXT
                 )
                 """
             )

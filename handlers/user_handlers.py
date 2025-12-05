@@ -80,11 +80,15 @@ async def registration(message: types.Message):
         f"{'CHAT' if chat_id < 0 else 'USER'}{chat_id}: регистрация нового пользователя/чата"
     )
 
-    args = message.text.split() if message.text else []
-
-    if len(args) > 1:
-        referral_code = args[1]
-        logger.info(f"Переход по реф.ссылке, код: {referral_code}")
+    # Извлекаем реферальный код только из команды /start
+    referral_code = None
+    if message.text and message.text.startswith("/start"):
+        args = message.text.split()
+        if len(args) > 1:
+            referral_code = args[1]
+            logger.info(
+                f"{'CHAT' if chat_id < 0 else 'USER'}{chat_id}: переход по реф.ссылке, код: {referral_code}"
+            )
 
     # Определяем имя в зависимости от типа чата
     if chat_id < 0:
@@ -99,7 +103,7 @@ async def registration(message: types.Message):
             else (user.username if user and user.username else "")
         )
 
-    conversation = Conversation(int(message.chat.id), user_name)
+    conversation = Conversation(int(message.chat.id), user_name, referral_code=referral_code)
     await conversation.save_for_db()
     builder = ReplyKeyboardBuilder()
 

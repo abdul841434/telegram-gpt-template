@@ -533,3 +533,78 @@ async def cmd_set_reminder_times(message: types.Message, state: FSMContext):
         reply_markup=ReplyKeyboardRemove(),
     )
     await state.set_state(AdminSetReminderTimes.input_times)
+
+
+@dp.message(UserIsAdmin(), Command("referral_stats"))
+async def cmd_referral_stats(message: types.Message):
+    """
+    Команда /referral_stats - статистика по реферальным ссылкам.
+    Доступна только администратору.
+    """
+    logger.info(
+        f"Команда /referral_stats получена от администратора {message.chat.id}"
+    )
+
+    status_msg = await message.answer(
+        "⏳ Собираю статистику по реферальным ссылкам..."
+    )
+
+    try:
+        import aiosqlite
+
+        from database import DATABASE_NAME
+
+        async with aiosqlite.connect(DATABASE_NAME) as db:
+            # Получаем статистику по реферальным кодам
+            cursor = await db.execute(
+                """
+                SELECT referral_code, COUNT(*) as count
+                FROM conversations
+                WHERE referral_code IS NOT NULL
+                GROUP BY referral_code
+                ORDER BY count DESC
+                """
+            )
+            referral_stats = await cursor.fetchall()
+
+            # Получаем общую статистику
+            cursor = await db.execute(
+                """
+                SELECT
+                    COUNT(*) as total_users,
+                    COUNT(referral_code) as users_with_referral,
+                    COUNT(CASE WHEN referral_code IS NULL THEN 1 END) as users_without_referral
+                FROM conversations
+                """
+            )
+            total_stats = await cursor.fetchone()
+
+        total_users = total_stats[0]
+        users_with_referral = total_stats[1]
+        users_without_referral = total_stats[2]
+
+        # Формируем отчет
+        report = "📊 Статистика по реферальным ссылкам\n\n"
+        report += f"👥 Всего пользователей: {total_users}\n"
+        report += f"🔗 С реферальным кодом: {users_with_referral}\n"
+        report += f"❌ Без реферального кода: {users_without_referral}\n"
+
+        if referral_stats:
+            report += "\n📈 Топ реферальных кодов:\n\n"
+            for idx, (ref_code, count) in enumerate(referral_stats, 1):
+                # Ограничиваем длину кода для отображения
+                display_code = ref_code if len(ref_code) <= 30 else ref_code[:27] + "..."
+                report += f"{idx}. `{display_code}` — {count} чел.\n"
+        else:
+            report += "\n❌ Нет пользователей с реферальными кодами"
+
+        await status_msg.edit_text(report, parse_mode="Markdown")
+        logger.info("Статистика по реферальным ссылкам успешно отправлена")
+
+    except Exception as e:
+        error_msg = f"❌ Ошибка при получении статистики: {e}"
+        logger.error(error_msg, exc_info=True)
+        await status_msg.edit_text(error_msg)
+
+        with contextlib.suppress(Exception):
+            await bot.send_message(ADMIN_CHAT, error_msg)
