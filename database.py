@@ -425,7 +425,7 @@ async def check_db():
                     active_messages_count INTEGER,
                     reminder_times TEXT DEFAULT '["19:15"]',
                     subscription_verified INTEGER,
-                    referral_code TEXT
+                    referral_code TEXT DEFAULT NULL
                 )
                 """
             )

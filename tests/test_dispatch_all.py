@@ -40,7 +40,8 @@ async def test_db():
                 is_admin INTEGER,
                 active_messages_count INTEGER,
                 reminder_times JSON,
-                subscription_verified INTEGER
+                subscription_verified INTEGER,
+                referral_code TEXT DEFAULT NULL
             )
         """)
 
