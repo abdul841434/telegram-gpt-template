@@ -571,14 +571,14 @@ async def send_message_with_fallback(
             
             # Это ошибка парсинга
             if attempt == 0:
-                logger.warning(
+                logger.debug(
                     f"CHAT{chat_id} - ошибка парсинга Markdown: {e}. "
                     f"Пробуем исправить markdown..."
                 )
             
             # Если исчерпали попытки целенаправленного исправления
             if attempt >= max_fix_attempts:
-                logger.warning(
+                logger.debug(
                     f"CHAT{chat_id} - исчерпаны попытки целенаправленного исправления "
                     f"({max_fix_attempts}). Пробуем общее исправление..."
                 )
@@ -588,14 +588,14 @@ async def send_message_with_fallback(
             problem_char, byte_offset = parse_telegram_error(error_message)
             
             if problem_char and byte_offset is not None:
-                logger.info(
+                logger.debug(
                     f"CHAT{chat_id} - попытка {attempt + 1}/{max_fix_attempts}: "
                     f"обнаружен проблемный символ '{problem_char}' на позиции {byte_offset}"
                 )
                 current_text = fix_markdown_at_offset(current_text, problem_char, byte_offset)
             else:
                 # Не удалось распарсить ошибку - переходим к общему исправлению
-                logger.info(
+                logger.debug(
                     f"CHAT{chat_id} - не удалось распарсить ошибку. "
                     f"Пробуем общее исправление..."
                 )
@@ -608,7 +608,7 @@ async def send_message_with_fallback(
     # Пробуем общее исправление markdown
     try:
         fixed_text = fix_nested_markdown(current_text)
-        logger.info(
+        logger.debug(
             f"CHAT{chat_id} - применяем общее исправление markdown..."
         )
         
