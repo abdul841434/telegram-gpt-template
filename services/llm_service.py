@@ -202,11 +202,11 @@ async def process_user_image(
         )
     except Exception as e:
         logger.error(f"VISION{chat_id} - Критическая ошибка: {e}", exc_info=True)
-        return None
+        return "⚠️ Произошла ошибка при обработке изображения. Пожалуйста, попробуйте позже."
 
     if image_description is None or image_description.strip() == "":
-        logger.error(f"VISION{chat_id} - пустой ответ от vision модели")
-        return None
+        # Ошибка уже залогирована в send_image_to_vision_model после всех попыток
+        return "⚠️ Не удалось обработать изображение. Пожалуйста, попробуйте позже."
 
     logger.info(f"VISION{chat_id} - описание получено: {image_description}")
 
@@ -337,10 +337,8 @@ async def process_user_video(
                 )
 
         if len(frame_descriptions) == 0:
-            logger.error(
-                f"VISION{chat_id} - не удалось получить описание ни одного кадра"
-            )
-            return None
+            # Ошибка уже залогирована в send_image_to_vision_model после всех попыток
+            return "⚠️ Не удалось обработать видео. Пожалуйста, попробуйте позже."
 
         # Формируем общее описание видео
         duration_text = f" длиной {video_duration} секунд" if video_duration else ""
