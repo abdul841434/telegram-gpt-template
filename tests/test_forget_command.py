@@ -38,7 +38,8 @@ async def test_db():
                 sub_period INTEGER,
                 is_admin INTEGER,
                 active_messages_count INTEGER,
-                reminder_times TEXT,
+                reminder_time TEXT DEFAULT '19:15',
+                reminder_weekdays TEXT DEFAULT '[]',
                 subscription_verified INTEGER,
                 referral_code TEXT DEFAULT NULL,
                 is_active INTEGER DEFAULT 1

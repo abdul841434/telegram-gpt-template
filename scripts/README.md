@@ -23,7 +23,8 @@
 **Параметры по умолчанию:**
 - `name`: NULL (автоматически обновится при первом сообщении)
 - `remind_of_yourself`: NULL (напоминания **включены**)
-- `reminder_times`: ["19:15"] (стандартное время напоминаний МСК)
+- `reminder_time`: "19:15" (стандартное время напоминаний МСК)
+- `reminder_weekdays`: "[]" (все дни недели, пустой список = все дни)
 - `sub_lvl`: 0 (нет подписки)
 - `is_admin`: 0 (не администратор)
 
@@ -71,8 +72,8 @@ SELECT id, name, remind_of_yourself FROM conversations;
 SELECT * FROM conversations WHERE id = 7581829366;
 
 -- Добавить пользователя вручную
-INSERT INTO conversations (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, reminder_times)
-VALUES (7581829366, NULL, '[]', NULL, 0, 0, -1, 0, '["19:15"]');
+INSERT INTO conversations (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, reminder_time, reminder_weekdays)
+VALUES (7581829366, NULL, '[]', NULL, 0, 0, -1, 0, '19:15', '[]');
 
 -- Удалить пользователя
 DELETE FROM conversations WHERE id = 7581829366;
@@ -98,7 +99,8 @@ DELETE FROM messages WHERE user_id = 7581829366;
 | `sub_period` | INTEGER | Период подписки |
 | `is_admin` | INTEGER | Флаг администратора |
 | `active_messages_count` | INTEGER | Количество активных сообщений в контексте |
-| `reminder_times` | TEXT | JSON массив времен напоминаний ["HH:MM"] |
+| `reminder_time` | TEXT | Время напоминания в формате "HH:MM" (МСК) |
+| `reminder_weekdays` | TEXT | JSON массив дней недели [0-6], пустой [] = все дни |
 | `subscription_verified` | INTEGER | Статус верификации подписки на каналы |
 
 ### Таблица `messages`

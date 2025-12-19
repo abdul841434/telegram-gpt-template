@@ -45,7 +45,8 @@ async def test_db():
                 sub_period INTEGER,
                 is_admin INTEGER,
                 active_messages_count INTEGER,
-                reminder_times TEXT,
+                reminder_time TEXT DEFAULT '19:15',
+                reminder_weekdays TEXT DEFAULT '[]',
                 subscription_verified INTEGER,
                 referral_code TEXT DEFAULT NULL,
                 is_active INTEGER DEFAULT 1
@@ -85,7 +86,7 @@ async def test_reminders_at_correct_time(test_db):
     """
     # Создаем пользователя с временем напоминания 14:30
     user_id = 11111
-    conversation = Conversation(user_id, name="TestUser", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="TestUser", reminder_time="14:30")
     conversation.remind_of_yourself = None  # Еще не получал напоминаний
     await conversation.save_for_db()
 
@@ -109,7 +110,7 @@ async def test_reminders_outside_time_window(test_db):
     """
     # Создаем пользователя с временем напоминания 14:30
     user_id = 22222
-    conversation = Conversation(user_id, name="TestUser2", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="TestUser2", reminder_time="14:30")
     conversation.remind_of_yourself = None
     await conversation.save_for_db()
 
@@ -135,7 +136,7 @@ async def test_reminders_disabled_users(test_db):
     """
     # Создаем пользователя с отключенными напоминаниями
     user_id = 33333
-    conversation = Conversation(user_id, name="TestUser3", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="TestUser3", reminder_time="14:30")
     conversation.remind_of_yourself = "0"  # Напоминания отключены
     await conversation.save_for_db()
 
@@ -162,7 +163,7 @@ async def test_reminders_recently_sent(test_db):
     """
     # Создаем пользователя с временем напоминания 14:30
     user_id = 44444
-    conversation = Conversation(user_id, name="TestUser4", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="TestUser4", reminder_time="14:30")
 
     # Последнее напоминание было 30 минут назад
     last_reminder = datetime(2025, 11, 7, 14, 2, 0)
@@ -192,7 +193,7 @@ async def test_reminders_after_one_hour(test_db):
     """
     # Создаем пользователя с временем напоминания 14:30
     user_id = 55555
-    conversation = Conversation(user_id, name="TestUser5", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="TestUser5", reminder_time="14:30")
 
     # Последнее напоминание было 2 часа назад
     last_reminder = datetime(2025, 11, 7, 12, 30, 0)
@@ -217,17 +218,17 @@ async def test_reminders_after_one_hour(test_db):
 @pytest.mark.asyncio
 async def test_reminders_multiple_times(test_db):
     """
-    Тест проверяет работу с несколькими временами напоминаний.
+    Тест проверяет работу с одним временем напоминания (старая функциональность с несколькими временами удалена).
     """
-    # Создаем пользователя с несколькими временами
+    # Создаем пользователя с одним временем
     user_id = 66666
     conversation = Conversation(
-        user_id, name="TestUser6", reminder_times=["09:00", "14:30", "19:15"]
+        user_id, name="TestUser6", reminder_time="14:30"
     )
     conversation.remind_of_yourself = None
     await conversation.save_for_db()
 
-    # Текущее время: 14:32 (попадает в окно второго времени)
+    # Текущее время: 14:32 (попадает в окно)
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
@@ -238,7 +239,7 @@ async def test_reminders_multiple_times(test_db):
         user_ids = await get_past_dates()
 
     assert user_id in user_ids, (
-        "Пользователь должен быть в списке (подходит второе время)"
+        "Пользователь должен быть в списке (время подходит)"
     )
 
 
@@ -250,13 +251,13 @@ async def test_reminders_null_vs_disabled(test_db):
     """
     # Пользователь 1: NULL - еще не получал
     user1_id = 77777
-    user1 = Conversation(user1_id, name="UserNull", reminder_times=["14:30"])
+    user1 = Conversation(user1_id, name="UserNull", reminder_time="14:30")
     user1.remind_of_yourself = None
     await user1.save_for_db()
 
     # Пользователь 2: "0" - отключены напоминания
     user2_id = 88888
-    user2 = Conversation(user2_id, name="UserDisabled", reminder_times=["14:30"])
+    user2 = Conversation(user2_id, name="UserDisabled", reminder_time="14:30")
     user2.remind_of_yourself = "0"
     await user2.save_for_db()
 
@@ -279,7 +280,7 @@ async def test_reminders_default_time(test_db):
     """
     Тест проверяет работу с дефолтным временем напоминания (19:15).
     """
-    # Создаем пользователя без указания reminder_times (должно быть ["19:15"])
+    # Создаем пользователя без указания reminder_time (должно быть "19:15")
     user_id = 99999
     conversation = Conversation(user_id, name="TestUserDefault")
     conversation.remind_of_yourself = None
@@ -288,11 +289,11 @@ async def test_reminders_default_time(test_db):
     # Проверяем, что в БД сохранилось дефолтное время
     async with aiosqlite.connect(test_db) as db:
         cursor = await db.execute(
-            "SELECT reminder_times FROM conversations WHERE id = ?", (user_id,)
+            "SELECT reminder_time FROM conversations WHERE id = ?", (user_id,)
         )
         row = await cursor.fetchone()
-        reminder_times = json.loads(row[0]) if row[0] else ["19:15"]
-        assert reminder_times == ["19:15"], "Дефолтное время должно быть 19:15"
+        reminder_time = row[0] if row[0] else "19:15"
+        assert reminder_time == "19:15", "Дефолтное время должно быть 19:15"
 
     # Текущее время: 19:17 (попадает в окно)
     mock_time = datetime(2025, 11, 7, 19, 17, 0)
@@ -316,12 +317,12 @@ async def test_reminders_edge_of_time_window(test_db):
     """
     # Создаем двух пользователей
     user1_id = 100001
-    user1 = Conversation(user1_id, name="EdgeStart", reminder_times=["14:30"])
+    user1 = Conversation(user1_id, name="EdgeStart", reminder_time="14:30")
     user1.remind_of_yourself = None
     await user1.save_for_db()
 
     user2_id = 100002
-    user2 = Conversation(user2_id, name="EdgeEnd", reminder_times=["14:30"])
+    user2 = Conversation(user2_id, name="EdgeEnd", reminder_time="14:30")
     user2.remind_of_yourself = None
     await user2.save_for_db()
 
@@ -351,7 +352,7 @@ async def test_reminders_edge_of_time_window(test_db):
 
     # Тест 3: В 14:45 (разница = 15 минут) - НЕ должно сработать
     user3_id = 100003
-    user3 = Conversation(user3_id, name="OutOfWindow", reminder_times=["14:30"])
+    user3 = Conversation(user3_id, name="OutOfWindow", reminder_time="14:30")
     user3.remind_of_yourself = None
     await user3.save_for_db()
 

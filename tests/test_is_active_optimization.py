@@ -50,7 +50,8 @@ async def test_db():
                 sub_period INTEGER,
                 is_admin INTEGER,
                 active_messages_count INTEGER,
-                reminder_times TEXT,
+                reminder_time TEXT DEFAULT '19:15',
+                reminder_weekdays TEXT DEFAULT '[]',
                 subscription_verified INTEGER,
                 referral_code TEXT DEFAULT NULL,
                 is_active INTEGER DEFAULT 1
@@ -130,7 +131,7 @@ async def test_get_past_dates_filters_inactive_users(test_db):
     """Тест проверяет, что неактивные пользователи фильтруются по is_active."""
     # Создаем активного пользователя (недавно отвечал)
     active_user_id = 2001
-    active_user = Conversation(active_user_id, name="ActiveUser", reminder_times=["14:30"])
+    active_user = Conversation(active_user_id, name="ActiveUser", reminder_time="14:30")
     active_user.remind_of_yourself = None
     active_user.is_active = 1
     await active_user.save_for_db()
@@ -146,7 +147,7 @@ async def test_get_past_dates_filters_inactive_users(test_db):
 
     # Создаем неактивного пользователя (не отвечал давно)
     inactive_user_id = 2002
-    inactive_user = Conversation(inactive_user_id, name="InactiveUser", reminder_times=["14:30"])
+    inactive_user = Conversation(inactive_user_id, name="InactiveUser", reminder_time="14:30")
     inactive_user.remind_of_yourself = None
     inactive_user.is_active = 0  # Помечаем как неактивного
     await inactive_user.save_for_db()
@@ -183,7 +184,7 @@ async def test_get_past_dates_filters_inactive_users(test_db):
 async def test_get_past_dates_updates_is_active_flag(test_db):
     """Тест проверяет, что get_past_dates() обновляет флаг is_active при проверке."""
     user_id = 3001
-    conversation = Conversation(user_id, name="TestUser", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="TestUser", reminder_time="14:30")
     conversation.remind_of_yourself = None
     conversation.is_active = 1  # Изначально активен
     await conversation.save_for_db()
@@ -227,7 +228,7 @@ async def test_get_past_dates_reactivates_user(test_db):
     корректно обрабатываются.
     """
     user_id = 4001
-    conversation = Conversation(user_id, name="TestUser", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="TestUser", reminder_time="14:30")
     conversation.remind_of_yourself = None
     conversation.is_active = 1  # Делаем активным, чтобы он попал в выборку
     await conversation.save_for_db()
@@ -286,7 +287,7 @@ async def test_get_past_dates_without_inactive_check(test_db):
     """Тест проверяет, что при INACTIVE_USER_DAYS=0 проверка активности отключена."""
     # Создаем неактивного пользователя
     user_id = 7001
-    conversation = Conversation(user_id, name="InactiveUser", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="InactiveUser", reminder_time="14:30")
     conversation.remind_of_yourself = None
     conversation.is_active = 0
     await conversation.save_for_db()
@@ -324,7 +325,7 @@ async def test_get_past_dates_without_inactive_check(test_db):
 async def test_is_active_with_no_messages(test_db):
     """Тест проверяет логику is_active для пользователей без сообщений."""
     user_id = 8001
-    conversation = Conversation(user_id, name="NewUser", reminder_times=["14:30"])
+    conversation = Conversation(user_id, name="NewUser", reminder_time="14:30")
     conversation.remind_of_yourself = None
     conversation.is_active = 1
     await conversation.save_for_db()
