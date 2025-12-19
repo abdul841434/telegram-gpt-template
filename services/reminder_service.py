@@ -83,18 +83,18 @@ async def send_reminder_to_user(user_id: int):
     reminder_content = reminder_content.replace("{WEEKDAY}", weekday)
     reminder_content = reminder_content.replace("{USERNAME}", username_replacement)
     
-    # Обрабатываем плейсхолдер FEEDBACK_LINK для типа feedback
+    # Обрабатываем плейсхолдер {FEEDBACK_LINK} для типа feedback
     if reminder_type == "feedback":
         if FEEDBACK_FORM_URL:
             # Если есть ссылка на форму, добавляем её в промпт
             feedback_link_text = f"Ссылка на гугл форму: {FEEDBACK_FORM_URL}"
-            reminder_content = reminder_content.replace("FEEDBACK_LINK", feedback_link_text)
+            reminder_content = reminder_content.replace("{FEEDBACK_LINK}", feedback_link_text)
         else:
             # Если ссылки нет, просто убираем плейсхолдер
-            reminder_content = reminder_content.replace("FEEDBACK_LINK", "")
+            reminder_content = reminder_content.replace("{FEEDBACK_LINK}", "")
     else:
         # Для других типов убираем плейсхолдер если он есть
-        reminder_content = reminder_content.replace("FEEDBACK_LINK", "")
+        reminder_content = reminder_content.replace("{FEEDBACK_LINK}", "")
 
     # Заменяем плейсхолдеры в DEFAULT_PROMPT
     default_content = DEFAULT_PROMPT.replace("{CURRENTDATE}", current_date)
