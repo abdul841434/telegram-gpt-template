@@ -12,6 +12,7 @@ from aiogram.exceptions import TelegramForbiddenError
 import database
 from config import (
     DEFAULT_PROMPT,
+    REMINDER_CHECK_INTERVAL,
     REMINDER_PROMPTS,
     TIMEZONE_OFFSET,
     logger,
@@ -209,17 +210,19 @@ async def check_and_send_reminders():
 async def reminder_loop():
     """
     Бесконечный цикл для периодической проверки и отправки напоминаний.
+    Интервал проверки настраивается через переменную окружения REMINDER_CHECK_INTERVAL (в секундах).
     """
-    logger.info("🔄 Фоновая задача напоминаний запущена (интервал: 15 минут)")
+    interval_minutes = REMINDER_CHECK_INTERVAL // 60
+    logger.info(f"🔄 Фоновая задача напоминаний запущена (интервал: {interval_minutes} минут)")
 
     while True:
         try:
             await check_and_send_reminders()
-            logger.info("⏳ Следующая проверка через 15 минут...")
-            await asyncio.sleep(900)  # 15 минут = 900 секунд
+            logger.info(f"⏳ Следующая проверка через {interval_minutes} минут...")
+            await asyncio.sleep(REMINDER_CHECK_INTERVAL)
         except asyncio.CancelledError:
             logger.info("🛑 Цикл напоминаний остановлен")
             break
         except Exception as e:
             logger.error(f"Ошибка в цикле напоминаний: {e}")
-            await asyncio.sleep(900)  # 15 минут = 900 секунд
+            await asyncio.sleep(REMINDER_CHECK_INTERVAL)

@@ -19,6 +19,9 @@ TIMEZONE_OFFSET = int(os.environ.get("TIMEZONE_OFFSET") or "3")
 FROM_TIME = int(os.environ.get("FROM_TIME") or "9")
 TO_TIME = int(os.environ.get("TO_TIME") or "23")
 
+# Импортируем настройки напоминаний из config
+from config import REMINDER_TIME, REMINDER_WEEKDAYS
+
 
 class Conversation:
     """
@@ -39,7 +42,9 @@ class Conversation:
         sub_period: Период подписки
         is_admin: Флаг администратора
         active_messages_count: Количество активных сообщений в контексте
-        reminder_times: Список времен для напоминаний (формат HH:MM)
+        reminder_time: Время напоминания в формате HH:MM (МСК)
+        reminder_weekdays: Список дней недели для напоминаний (0=Понедельник, 6=Воскресенье)
+                          Если пустой список [], то напоминания во все дни
         subscription_verified: Статус верификации подписки
         referral_code: Реферальный код, по которому пользователь перешел в бота
         is_active: Флаг активности пользователя (1 = активен, 0 = неактивен)
@@ -56,15 +61,18 @@ class Conversation:
         sub_period=-1,
         is_admin=0,
         active_messages_count=None,
-        reminder_times=None,
+        reminder_time=None,
+        reminder_weekdays=None,
         subscription_verified=None,
         referral_code=None,
         is_active=1,
     ):
         if prompt is None:
             prompt = []
-        if reminder_times is None:
-            reminder_times = ["19:15"]
+        if reminder_time is None:
+            reminder_time = REMINDER_TIME  # Используем значение из .env
+        if reminder_weekdays is None:
+            reminder_weekdays = REMINDER_WEEKDAYS  # Используем значение из .env
         self.id = id
         self.name = name
         self.prompt = prompt  # Оставляем для обратной совместимости
@@ -76,8 +84,9 @@ class Conversation:
         self.active_messages_count = (
             active_messages_count  # NULL = все, 0 = забыть, N = последние N
         )
-        self.reminder_times = (
-            reminder_times  # Список времен напоминаний в формате HH:MM (МСК)
+        self.reminder_time = reminder_time  # Время напоминания в формате HH:MM (МСК)
+        self.reminder_weekdays = (
+            reminder_weekdays  # Список дней недели (0=Пн, 6=Вс), [] = все дни
         )
         self.subscription_verified = subscription_verified  # NULL = не проверялось, 0 = не подписан, 1 = подписан
         self.referral_code = referral_code  # Реферальный код для отслеживания источника регистрации
@@ -102,12 +111,13 @@ class Conversation:
                 self.sub_period = row[6]
                 self.is_admin = row[7]
                 self.active_messages_count = row[8] if len(row) > 8 else None
-                self.reminder_times = (
-                    json.loads(row[9]) if len(row) > 9 and row[9] else ["19:15"]
+                self.reminder_time = row[9] if len(row) > 9 and row[9] else REMINDER_TIME
+                self.reminder_weekdays = (
+                    json.loads(row[10]) if len(row) > 10 and row[10] else REMINDER_WEEKDAYS
                 )
-                self.subscription_verified = row[10] if len(row) > 10 else None
-                self.referral_code = row[11] if len(row) > 11 else None
-                self.is_active = row[12] if len(row) > 12 else 1
+                self.subscription_verified = row[11] if len(row) > 11 else None
+                self.referral_code = row[12] if len(row) > 12 else None
+                self.is_active = row[13] if len(row) > 13 else 1
 
     async def __call__(self, user_id):
         async with aiosqlite.connect(DATABASE_NAME) as db:
@@ -126,12 +136,13 @@ class Conversation:
                     sub_period=row[6],
                     is_admin=row[7],
                     active_messages_count=row[8] if len(row) > 8 else None,
-                    reminder_times=json.loads(row[9])
-                    if len(row) > 9 and row[9]
-                    else ["19:15"],
-                    subscription_verified=row[10] if len(row) > 10 else None,
-                    referral_code=row[11] if len(row) > 11 else None,
-                    is_active=row[12] if len(row) > 12 else 1,
+                    reminder_time=row[9] if len(row) > 9 and row[9] else REMINDER_TIME,
+                    reminder_weekdays=json.loads(row[10])
+                    if len(row) > 10 and row[10]
+                    else REMINDER_WEEKDAYS,
+                    subscription_verified=row[11] if len(row) > 11 else None,
+                    referral_code=row[12] if len(row) > 12 else None,
+                    is_active=row[13] if len(row) > 13 else 1,
                 )
             return None
 
@@ -147,8 +158,8 @@ class Conversation:
         async with aiosqlite.connect(DATABASE_NAME) as db:
             cursor = await db.cursor()
             sql_insert = """
-                        INSERT INTO conversations (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_times, subscription_verified, referral_code, is_active)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO conversations (id, name, prompt, remind_of_yourself, sub_lvl, sub_id, sub_period, is_admin, active_messages_count, reminder_time, reminder_weekdays, subscription_verified, referral_code, is_active)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """
             values = (
                 self.id,
@@ -160,7 +171,8 @@ class Conversation:
                 self.sub_period,
                 self.is_admin,
                 self.active_messages_count,
-                json.dumps(self.reminder_times),
+                self.reminder_time,
+                json.dumps(self.reminder_weekdays),
                 self.subscription_verified,
                 self.referral_code,
                 self.is_active,
@@ -255,7 +267,7 @@ class Conversation:
             cursor = await db.cursor()
             sql_query = """
                 UPDATE conversations
-                SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?, reminder_times = ?, subscription_verified = ?, referral_code = ?, is_active = ?
+                SET name = ?, prompt = ?, remind_of_yourself = ?, sub_lvl = ?, sub_id = ?, sub_period = ?, is_admin = ?, active_messages_count = ?, reminder_time = ?, reminder_weekdays = ?, subscription_verified = ?, referral_code = ?, is_active = ?
                 WHERE id = ?
             """
             values = (
@@ -267,7 +279,8 @@ class Conversation:
                 self.sub_period,
                 self.is_admin,
                 self.active_messages_count,
-                json.dumps(self.reminder_times),
+                self.reminder_time,
+                json.dumps(self.reminder_weekdays),
                 self.subscription_verified,
                 self.referral_code,
                 self.is_active,
@@ -430,7 +443,8 @@ async def check_db():
                     sub_period INTEGER,
                     is_admin INTEGER,
                     active_messages_count INTEGER,
-                    reminder_times TEXT DEFAULT '["19:15"]',
+                    reminder_time TEXT DEFAULT '19:15',  # Значение по умолчанию, реальное берется из REMINDER_TIME
+                    reminder_weekdays TEXT DEFAULT '[]',
                     subscription_verified INTEGER,
                     referral_code TEXT DEFAULT NULL,
                     is_active INTEGER DEFAULT 1
@@ -456,13 +470,15 @@ async def user_exists(user_id):
 async def get_past_dates():
     """
     Получает список пользователей, которым нужно отправить напоминание.
-    Проверяет, наступило ли время из списка reminder_times для ежедневных напоминаний.
+    Проверяет, наступило ли время reminder_time и подходит ли текущий день недели.
 
     Логика:
     - remind_of_yourself = "0" -> напоминания отключены
     - remind_of_yourself = NULL -> еще не отправлялось, можно отправить
     - remind_of_yourself = timestamp -> проверяем, что прошел минимум 1 час
     - is_active = 0 -> пользователь неактивен (не отвечал более INACTIVE_USER_DAYS дней)
+    - reminder_weekdays = [] -> напоминания во все дни недели
+    - reminder_weekdays = [0,1,2] -> напоминания только в указанные дни (0=Понедельник, 6=Воскресенье)
 
     Оптимизация:
     - Использует поле is_active для первичной фильтрации (если INACTIVE_USER_DAYS > 0)
@@ -485,18 +501,20 @@ async def get_past_dates():
         now_msk = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
         current_hour = now_msk.hour
         current_minute = now_msk.minute
+        current_weekday = now_msk.weekday()  # 0=Понедельник, 6=Воскресенье
 
         logger.debug(
-            f"Текущее время МСК: {now_msk.strftime('%Y-%m-%d %H:%M:%S')} ({current_hour:02d}:{current_minute:02d})"
+            f"Текущее время МСК: {now_msk.strftime('%Y-%m-%d %H:%M:%S')} "
+            f"({current_hour:02d}:{current_minute:02d}, день недели: {current_weekday})"
         )
 
         # Формируем запрос с учетом is_active для оптимизации
         if INACTIVE_USER_DAYS > 0:
             # Фильтруем только активных пользователей (если проверка активности включена)
-            query = "SELECT id, reminder_times, remind_of_yourself, is_active FROM conversations WHERE is_active = 1"
+            query = "SELECT id, reminder_time, reminder_weekdays, remind_of_yourself, is_active FROM conversations WHERE is_active = 1"
         else:
             # Если проверка активности отключена, проверяем всех
-            query = "SELECT id, reminder_times, remind_of_yourself, is_active FROM conversations"
+            query = "SELECT id, reminder_time, reminder_weekdays, remind_of_yourself, is_active FROM conversations"
 
         async with db.execute(query) as cursor:
             results = await cursor.fetchall()
@@ -510,9 +528,10 @@ async def get_past_dates():
 
         for row in results:
             user_id = row[0]
-            reminder_times_json = row[1]
-            remind_of_yourself = row[2]
-            current_is_active = row[3] if len(row) > 3 else 1
+            reminder_time_str = row[1]
+            reminder_weekdays_json = row[2]
+            remind_of_yourself = row[3]
+            current_is_active = row[4] if len(row) > 4 else 1
 
             # Пропускаем пользователей с отключенными напоминаниями
             if remind_of_yourself == "0":
@@ -579,83 +598,94 @@ async def get_past_dates():
                     )
                     continue
 
-            # Парсим список времен напоминаний
+            # Парсим время напоминания
+            if not reminder_time_str:
+                reminder_time_str = "19:15"
+
+            # Парсим дни недели
             try:
-                reminder_times = (
-                    json.loads(reminder_times_json)
-                    if reminder_times_json
-                    else ["19:15"]
+                reminder_weekdays = (
+                    json.loads(reminder_weekdays_json)
+                    if reminder_weekdays_json
+                    else []
                 )
             except json.JSONDecodeError:
-                reminder_times = ["19:15"]
+                reminder_weekdays = []
+
+            # Проверяем, подходит ли текущий день недели
+            # Если reminder_weekdays пустой, то напоминания во все дни
+            if reminder_weekdays and current_weekday not in reminder_weekdays:
+                logger.debug(
+                    f"USER{user_id}: день недели {current_weekday} не в списке {reminder_weekdays}"
+                )
+                continue
 
             logger.debug(
-                f"USER{user_id}: времена напоминаний {reminder_times}, последнее: {remind_of_yourself}"
+                f"USER{user_id}: время напоминания {reminder_time_str}, дни недели {reminder_weekdays if reminder_weekdays else 'все'}, "
+                f"последнее: {remind_of_yourself}"
             )
 
-            # Проверяем, наступило ли одно из времен напоминаний
-            for reminder_time in reminder_times:
-                try:
-                    reminder_hour, reminder_minute = map(int, reminder_time.split(":"))
+            # Проверяем, наступило ли время напоминания
+            try:
+                reminder_hour, reminder_minute = map(int, reminder_time_str.split(":"))
 
-                    # Проверяем, что текущее время находится в пределах 15 минут от времени напоминания
-                    # (так как проверка происходит каждые 15 минут)
-                    time_diff = (current_hour * 60 + current_minute) - (
-                        reminder_hour * 60 + reminder_minute
+                # Проверяем, что текущее время находится в пределах 15 минут от времени напоминания
+                # (так как проверка происходит каждые 15 минут)
+                time_diff = (current_hour * 60 + current_minute) - (
+                    reminder_hour * 60 + reminder_minute
+                )
+
+                # Если время напоминания наступило (в пределах последних 15 минут)
+                if 0 <= time_diff < 15:
+                    logger.debug(
+                        f"USER{user_id}: время {reminder_time_str} подходит (разница: {time_diff} мин)"
                     )
 
-                    # Если время напоминания наступило (в пределах последних 15 минут)
-                    if 0 <= time_diff < 15:
-                        logger.debug(
-                            f"USER{user_id}: время {reminder_time} подходит (разница: {time_diff} мин)"
-                        )
+                    # Проверяем, можно ли отправить напоминание
+                    can_send = False
 
-                        # Проверяем, можно ли отправить напоминание
-                        can_send = False
+                    if remind_of_yourself is None:
+                        # Еще никогда не отправлялось
+                        logger.debug(f"USER{user_id}: еще не получал напоминаний")
+                        can_send = True
+                    else:
+                        # Пытаемся распарсить timestamp
+                        try:
+                            last_reminder = datetime.strptime(
+                                remind_of_yourself, "%Y-%m-%d %H:%M:%S"
+                            )
+                            time_since_last = (
+                                now_msk.replace(tzinfo=None) - last_reminder
+                            ).total_seconds()
 
-                        if remind_of_yourself is None:
-                            # Еще никогда не отправлялось
-                            logger.debug(f"USER{user_id}: еще не получал напоминаний")
-                            can_send = True
-                        else:
-                            # Пытаемся распарсить timestamp
-                            try:
-                                last_reminder = datetime.strptime(
-                                    remind_of_yourself, "%Y-%m-%d %H:%M:%S"
-                                )
-                                time_since_last = (
-                                    now_msk.replace(tzinfo=None) - last_reminder
-                                ).total_seconds()
-
-                                # Минимум 1 час между напоминаниями (чтобы избежать дублей в одном временном окне)
-                                if time_since_last >= 3600:
-                                    logger.debug(
-                                        f"USER{user_id}: прошло {int(time_since_last / 60)} мин с последнего"
-                                    )
-                                    can_send = True
-                                else:
-                                    logger.debug(
-                                        f"USER{user_id}: недавно отправлялось ({int(time_since_last / 60)} мин назад)"
-                                    )
-                            except (ValueError, TypeError) as e:
-                                # Некорректный формат - считаем что можно отправить
-                                logger.warning(
-                                    f"USER{user_id}: некорректный формат времени '{remind_of_yourself}': {e}"
+                            # Минимум 1 час между напоминаниями (чтобы избежать дублей в одном временном окне)
+                            if time_since_last >= 3600:
+                                logger.debug(
+                                    f"USER{user_id}: прошло {int(time_since_last / 60)} мин с последнего"
                                 )
                                 can_send = True
-
-                        if can_send:
-                            logger.info(
-                                f"USER{user_id}: добавлен в очередь на отправку (время {reminder_time})"
+                            else:
+                                logger.debug(
+                                    f"USER{user_id}: недавно отправлялось ({int(time_since_last / 60)} мин назад)"
+                                )
+                        except (ValueError, TypeError) as e:
+                            # Некорректный формат - считаем что можно отправить
+                            logger.warning(
+                                f"USER{user_id}: некорректный формат времени '{remind_of_yourself}': {e}"
                             )
-                            past_user_ids.append(user_id)
-                            break  # Нашли подходящее время, выходим из цикла
+                            can_send = True
 
-                except (ValueError, AttributeError) as e:
-                    logger.debug(
-                        f"USER{user_id}: ошибка при обработке времени {reminder_time}: {e}"
-                    )
-                    continue
+                    if can_send:
+                        logger.info(
+                            f"USER{user_id}: добавлен в очередь на отправку (время {reminder_time_str})"
+                        )
+                        past_user_ids.append(user_id)
+
+            except (ValueError, AttributeError) as e:
+                logger.debug(
+                    f"USER{user_id}: ошибка при обработке времени {reminder_time_str}: {e}"
+                )
+                continue
 
         # Обновляем флаги is_active для всех пользователей, у которых изменилась активность
         if updates_to_commit:

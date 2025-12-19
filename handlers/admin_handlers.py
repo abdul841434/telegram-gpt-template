@@ -17,7 +17,7 @@ from database import Conversation
 from filters import UserIsAdmin
 from services.stats_service import generate_user_stats, get_top_active_users
 from services.subscription_service import is_user_subscribed_to_all
-from states import AdminDispatch, AdminDispatchAll, AdminSetReminderTimes
+from states import AdminDispatch, AdminDispatchAll
 
 
 @dp.message(AdminDispatch.input_text)
@@ -439,73 +439,6 @@ async def cmd_stats(message: types.Message):
             logger.warning(f"Не удалось отправить ошибку в DEBUG чат: {debug_error}")
 
 
-@dp.message(AdminSetReminderTimes.input_times)
-async def cmd_set_reminder_times_input(message: types.Message, state: FSMContext):
-    """Обработка ввода времен напоминаний."""
-    data = await state.get_data()
-    user_id = data.get("user_id")
-
-    if not user_id:
-        await message.answer("❌ Ошибка: не найден ID пользователя")
-        await state.clear()
-        return
-
-    try:
-        # Парсим введенные времена (формат: HH:MM HH:MM HH:MM)
-        import re
-
-        times_text = message.text.strip()
-
-        # Извлекаем все времена в формате HH:MM
-        time_pattern = r"\b([0-2]?[0-9]):([0-5][0-9])\b"
-        matches = re.findall(time_pattern, times_text)
-
-        if not matches:
-            await message.answer(
-                "❌ Не найдено корректных времен. Введите время в формате HH:MM (например: 09:00 14:30 19:15)"
-            )
-            return
-
-        # Формируем список времен и валидируем их
-        reminder_times = []
-        for hour, minute in matches:
-            hour_int = int(hour)
-            minute_int = int(minute)
-
-            if not (0 <= hour_int <= 23 and 0 <= minute_int <= 59):
-                await message.answer(f"❌ Некорректное время: {hour}:{minute}")
-                return
-
-            # Форматируем время с ведущими нулями
-            time_str = f"{hour_int:02d}:{minute_int:02d}"
-            if time_str not in reminder_times:
-                reminder_times.append(time_str)
-
-        # Обновляем пользователя в БД
-        conversation = Conversation(user_id)
-        await conversation.get_from_db()
-        conversation.reminder_times = reminder_times
-        await conversation.update_in_db()
-
-        times_display = ", ".join(reminder_times)
-        success_msg = (
-            f"✅ Времена напоминаний для USER{user_id} обновлены: {times_display}"
-        )
-
-        await message.answer(success_msg)
-        logger.info(success_msg)
-
-        with contextlib.suppress(Exception):
-            await bot.send_message(ADMIN_CHAT, success_msg)
-
-    except Exception as e:
-        error_msg = f"❌ Ошибка при обновлении времен напоминаний: {e}"
-        logger.error(error_msg, exc_info=True)
-        await message.answer(error_msg)
-
-    await state.clear()
-
-
 @dp.message(UserIsAdmin(), Command("send_reminders"))
 async def cmd_send_reminders(message: types.Message):
     """
@@ -581,46 +514,6 @@ async def cmd_send_reminders(message: types.Message):
 
         with contextlib.suppress(Exception):
             await bot.send_message(ADMIN_CHAT, error_msg)
-
-
-@dp.message(UserIsAdmin(), Command("set_reminder_times"))
-async def cmd_set_reminder_times(message: types.Message, state: FSMContext):
-    """
-    Команда /set_reminder_times - установка времен напоминаний для пользователя.
-    Использовать как ответ на сообщение с USER ID.
-    """
-    logger.info(
-        f"Команда /set_reminder_times получена от пользователя {message.chat.id}"
-    )
-    user_id = None
-
-    # Проверяем, является ли сообщение ответом на другое сообщение
-    if message.reply_to_message and message.reply_to_message.text:
-        # Пытаемся извлечь USER ID из текста сообщения
-        replied_text = message.reply_to_message.text
-        logger.debug(f"Проверяем replied_text: {replied_text}")
-        match = re.search(r"USER(\d+)", replied_text)
-        if match:
-            user_id = int(match.group(1))
-            logger.info(f"Извлечен user_id: {user_id}")
-
-    if not user_id:
-        await message.answer(
-            "❌ Используйте эту команду как ответ на сообщение, содержащее USER ID\n"
-            "Например, ответьте на сообщение с текстом вида 'USER123456789'"
-        )
-        return
-
-    # Сохраняем user_id в состоянии и запрашиваем времена
-    await state.update_data(user_id=user_id)
-    await message.answer(
-        f"📝 Введите времена напоминаний для USER{user_id} в формате МСК\n\n"
-        f"Формат: HH:MM HH:MM HH:MM\n"
-        f"Например: 09:00 14:30 19:15\n\n"
-        f"Можно ввести одно или несколько времен через пробел.",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    await state.set_state(AdminSetReminderTimes.input_times)
 
 
 @dp.message(UserIsAdmin(), Command("referral_stats"))

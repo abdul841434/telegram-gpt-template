@@ -18,7 +18,3 @@ class AdminDispatchAll(StatesGroup):
     input_text = State()
 
 
-class AdminSetReminderTimes(StatesGroup):
-    """Состояния для установки времен напоминаний пользователю."""
-
-    input_times = State()

@@ -47,6 +47,23 @@ FROM_TIME = int(os.environ.get("FROM_TIME") or "9")
 TO_TIME = int(os.environ.get("TO_TIME") or "23")
 INACTIVE_USER_DAYS = int(os.environ.get("INACTIVE_USER_DAYS") or "7")  # Количество дней неактивности для отключения напоминаний
 
+# Время и дни недели для напоминаний (глобальные настройки для всех пользователей)
+REMINDER_TIME = os.environ.get("REMINDER_TIME", "19:15")  # Время напоминания в формате HH:MM (МСК)
+REMINDER_WEEKDAYS_STR = os.environ.get("REMINDER_WEEKDAYS", "")  # Дни недели через запятую (0=Пн, 6=Вс), пусто = все дни
+# Парсим дни недели
+if REMINDER_WEEKDAYS_STR.strip():
+    try:
+        REMINDER_WEEKDAYS = [int(x.strip()) for x in REMINDER_WEEKDAYS_STR.split(",") if x.strip()]
+        # Валидация: только числа от 0 до 6
+        REMINDER_WEEKDAYS = [wd for wd in REMINDER_WEEKDAYS if 0 <= wd <= 6]
+    except (ValueError, AttributeError):
+        REMINDER_WEEKDAYS = []
+else:
+    REMINDER_WEEKDAYS = []  # Пустой список = все дни недели
+
+# Интервал проверки напоминаний (в секундах)
+REMINDER_CHECK_INTERVAL = int(os.environ.get("REMINDER_CHECK_INTERVAL") or "900")  # По умолчанию 15 минут (900 секунд)
+
 
 # Загрузка промптов и сообщений
 with open("config/prompts.json", encoding="utf-8") as f:
