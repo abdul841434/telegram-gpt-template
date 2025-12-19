@@ -454,7 +454,7 @@ async def check_db():
                     sub_period INTEGER,
                     is_admin INTEGER,
                     active_messages_count INTEGER,
-                    reminder_time TEXT DEFAULT '19:15',  # Значение по умолчанию, реальное берется из REMINDER_TIME
+                    reminder_time TEXT DEFAULT '19:15',
                     reminder_weekdays TEXT DEFAULT '[]',
                     subscription_verified INTEGER,
                     referral_code TEXT DEFAULT NULL,
