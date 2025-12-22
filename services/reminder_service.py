@@ -172,8 +172,8 @@ async def send_reminder_to_user(user_id: int):
                 conversation.remind_of_yourself = 0
                 await conversation.update_in_db()
                 logger.warning(f"USER{user_id} заблокировал чатбота")
-            # Не пробрасываем исключение - это нормальная ситуация
-            return
+            # Пробрасываем исключение для подсчета в check_and_send_reminders
+            raise
 
         start += 4096
 
@@ -208,11 +208,15 @@ async def check_and_send_reminders():
 
     success_count = 0
     error_count = 0
+    blocked_count = 0
 
     for user_id in user_ids:
         try:
             await send_reminder_to_user(user_id)
             success_count += 1
+        except TelegramForbiddenError:
+            # Пользователь заблокировал бота - это было обработано в send_reminder_to_user
+            blocked_count += 1
         except Exception as e:
             error_count += 1
             logger.error(
@@ -220,8 +224,19 @@ async def check_and_send_reminders():
                 exc_info=True,
             )
 
+    # Формируем сообщение для админов (уровень WARNING, чтобы было видно)
+    summary = (
+        f"📊 Результаты отправки напоминаний:\n"
+        f"✅ Успешно отправлено: {success_count}\n"
+        f"🚫 Заблокировали бота: {blocked_count}\n"
+        f"❌ Ошибок: {error_count}\n"
+        f"📋 Всего обработано: {len(user_ids)}"
+    )
+    
+    logger.warning(summary)
     logger.info(
-        f"✅ Проверка завершена: отправлено {success_count} напоминаний, ошибок: {error_count}"
+        f"✅ Проверка завершена: отправлено {success_count} напоминаний, "
+        f"заблокировали бота {blocked_count}, ошибок: {error_count}"
     )
 
 

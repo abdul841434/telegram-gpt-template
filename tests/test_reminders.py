@@ -89,11 +89,12 @@ async def test_reminders_at_correct_time(test_db):
     conversation.remind_of_yourself = None  # Еще не получал напоминаний
     await conversation.save_for_db()
 
-    # Мокируем текущее время: 14:32 (попадает в окно 14:30 ± 15 минут)
+    # Мокируем текущее время: 14:32 (попадает в окно, зависит от REMINDER_CHECK_INTERVAL)
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch("database.datetime") as mock_datetime:
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 900):  # 15 минут
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -113,11 +114,12 @@ async def test_reminders_outside_time_window(test_db):
     conversation.remind_of_yourself = None
     await conversation.save_for_db()
 
-    # Мокируем текущее время: 15:00 (не попадает в окно 14:30-14:45)
+    # Мокируем текущее время: 15:00 (не попадает в окно при REMINDER_CHECK_INTERVAL=900)
     mock_time = datetime(2025, 11, 7, 15, 0, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch("database.datetime") as mock_datetime:
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 900):  # 15 минут
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -143,7 +145,8 @@ async def test_reminders_disabled_users(test_db):
     mock_time = datetime(2025, 11, 7, 14, 32, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch("database.datetime") as mock_datetime:
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 900):
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -312,7 +315,7 @@ async def test_reminders_default_time(test_db):
 @pytest.mark.asyncio
 async def test_reminders_edge_of_time_window(test_db):
     """
-    Тест проверяет граничные случаи временного окна (0 и 14 минут).
+    Тест проверяет граничные случаи временного окна (0 и 14 минут) с REMINDER_CHECK_INTERVAL=900 (15 минут).
     """
     # Создаем двух пользователей
     user1_id = 100001
@@ -329,7 +332,8 @@ async def test_reminders_edge_of_time_window(test_db):
     mock_time = datetime(2025, 11, 7, 14, 30, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch("database.datetime") as mock_datetime:
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 900):
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -341,7 +345,8 @@ async def test_reminders_edge_of_time_window(test_db):
     mock_time = datetime(2025, 11, 7, 14, 44, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch("database.datetime") as mock_datetime:
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 900):
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
@@ -349,7 +354,7 @@ async def test_reminders_edge_of_time_window(test_db):
 
     assert user2_id in user_ids, "В 14:44 (разница=14) должно сработать"
 
-    # Тест 3: В 14:45 (разница = 15 минут) - НЕ должно сработать
+    # Тест 3: В 14:45 (разница = 15 минут) - НЕ должно сработать (выход за окно)
     user3_id = 100003
     user3 = Conversation(user3_id, name="OutOfWindow", reminder_time="14:30")
     user3.remind_of_yourself = None
@@ -358,10 +363,252 @@ async def test_reminders_edge_of_time_window(test_db):
     mock_time = datetime(2025, 11, 7, 14, 45, 0)
     mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
 
-    with patch("database.datetime") as mock_datetime:
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 900):
         mock_datetime.now.return_value = mock_time_with_tz
         mock_datetime.strptime = datetime.strptime
 
         user_ids = await get_past_dates()
 
     assert user3_id not in user_ids, "В 14:45 (разница=15) НЕ должно сработать"
+
+
+@pytest.mark.asyncio
+async def test_reminders_on_correct_weekdays(test_db):
+    """
+    Тест проверяет, что напоминания отправляются только в указанные дни недели.
+    """
+    # Создаем пользователя с напоминаниями в понедельник (0), среду (2), субботу (5), воскресенье (6)
+    user_id = 200001
+    conversation = Conversation(
+        user_id,
+        name="WeekdayUser",
+        reminder_time="19:15",
+        reminder_weekdays=[0, 2, 5, 6]
+    )
+    conversation.remind_of_yourself = None
+    await conversation.save_for_db()
+
+    # Тест 1: Понедельник (weekday=0) - должно сработать
+    # 2025-01-06 это понедельник
+    mock_time = datetime(2025, 1, 6, 19, 17, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id in user_ids, "В понедельник (0) должно сработать"
+
+    # Обновляем время последнего напоминания, чтобы не мешало следующему тесту
+    conversation.remind_of_yourself = None
+    await conversation.update_in_db()
+
+    # Тест 2: Среда (weekday=2) - должно сработать
+    # 2025-01-08 это среда
+    mock_time = datetime(2025, 1, 8, 19, 17, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id in user_ids, "В среду (2) должно сработать"
+
+    # Тест 3: Суббота (weekday=5) - должно сработать
+    conversation.remind_of_yourself = None
+    await conversation.update_in_db()
+
+    # 2025-01-11 это суббота
+    mock_time = datetime(2025, 1, 11, 19, 17, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id in user_ids, "В субботу (5) должно сработать"
+
+    # Тест 4: Воскресенье (weekday=6) - должно сработать
+    conversation.remind_of_yourself = None
+    await conversation.update_in_db()
+
+    # 2025-01-12 это воскресенье
+    mock_time = datetime(2025, 1, 12, 19, 17, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id in user_ids, "В воскресенье (6) должно сработать"
+
+
+@pytest.mark.asyncio
+async def test_reminders_on_incorrect_weekdays(test_db):
+    """
+    Тест проверяет, что напоминания НЕ отправляются в неуказанные дни недели.
+    """
+    # Создаем пользователя с напоминаниями только в понедельник (0), среду (2), субботу (5), воскресенье (6)
+    user_id = 200002
+    conversation = Conversation(
+        user_id,
+        name="WeekdayUser2",
+        reminder_time="19:15",
+        reminder_weekdays=[0, 2, 5, 6]
+    )
+    conversation.remind_of_yourself = None
+    await conversation.save_for_db()
+
+    # Тест 1: Вторник (weekday=1) - НЕ должно сработать
+    # 2025-01-07 это вторник
+    mock_time = datetime(2025, 1, 7, 19, 17, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id not in user_ids, "Во вторник (1) НЕ должно сработать"
+
+    # Тест 2: Четверг (weekday=3) - НЕ должно сработать
+    # 2025-01-09 это четверг
+    mock_time = datetime(2025, 1, 9, 19, 17, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id not in user_ids, "В четверг (3) НЕ должно сработать"
+
+    # Тест 3: Пятница (weekday=4) - НЕ должно сработать
+    # 2025-01-10 это пятница
+    mock_time = datetime(2025, 1, 10, 19, 17, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime:
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id not in user_ids, "В пятницу (4) НЕ должно сработать"
+
+
+@pytest.mark.asyncio
+async def test_reminders_all_weekdays_when_empty(test_db):
+    """
+    Тест проверяет, что при пустом списке дней недели напоминания отправляются КАЖДЫЙ день.
+    """
+    # Создаем пользователя с пустым списком дней недели (все дни)
+    user_id = 200003
+    conversation = Conversation(
+        user_id,
+        name="EveryDayUser",
+        reminder_time="19:15",
+        reminder_weekdays=[]  # Пустой список = все дни
+    )
+    conversation.remind_of_yourself = None
+    await conversation.save_for_db()
+
+    # Проверяем все дни недели
+    weekdays_to_test = [
+        (datetime(2025, 1, 6, 19, 17, 0), "понедельник"),  # 0
+        (datetime(2025, 1, 7, 19, 17, 0), "вторник"),      # 1
+        (datetime(2025, 1, 8, 19, 17, 0), "среда"),        # 2
+        (datetime(2025, 1, 9, 19, 17, 0), "четверг"),      # 3
+        (datetime(2025, 1, 10, 19, 17, 0), "пятница"),     # 4
+        (datetime(2025, 1, 11, 19, 17, 0), "суббота"),     # 5
+        (datetime(2025, 1, 12, 19, 17, 0), "воскресенье"), # 6
+    ]
+
+    for mock_time, day_name in weekdays_to_test:
+        # Сбрасываем remind_of_yourself для каждого теста
+        conversation.remind_of_yourself = None
+        await conversation.update_in_db()
+
+        mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+        with patch("database.datetime") as mock_datetime:
+            mock_datetime.now.return_value = mock_time_with_tz
+            mock_datetime.strptime = datetime.strptime
+
+            user_ids = await get_past_dates()
+
+        assert user_id in user_ids, f"В {day_name} должно сработать (пустой список = все дни)"
+
+
+@pytest.mark.asyncio
+async def test_reminders_with_1hour_interval(test_db):
+    """
+    Тест проверяет, что при REMINDER_CHECK_INTERVAL=3600 (1 час)
+    напоминание корректно отправляется в пределах часового окна.
+    """
+    # Создаем пользователя с временем напоминания 19:15
+    user_id = 200004
+    conversation = Conversation(
+        user_id,
+        name="HourlyUser",
+        reminder_time="19:15",
+        reminder_weekdays=[]
+    )
+    conversation.remind_of_yourself = None
+    await conversation.save_for_db()
+
+    # Тест 1: Текущее время 19:15 - должно сработать
+    mock_time = datetime(2025, 1, 6, 19, 15, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 3600):
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id in user_ids, "В 19:15 (интервал=1ч) должно сработать"
+
+    # Тест 2: Текущее время 20:00 (через 45 минут) - должно сработать
+    conversation.remind_of_yourself = None
+    await conversation.update_in_db()
+
+    mock_time = datetime(2025, 1, 6, 20, 0, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 3600):
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id in user_ids, "В 20:00 (разница=45мин, интервал=1ч) должно сработать"
+
+    # Тест 3: Текущее время 20:15 (через 60 минут) - НЕ должно сработать (выход за окно)
+    conversation.remind_of_yourself = None
+    await conversation.update_in_db()
+
+    mock_time = datetime(2025, 1, 6, 20, 15, 0)
+    mock_time_with_tz = mock_time.replace(tzinfo=timezone(timedelta(hours=3)))
+
+    with patch("database.datetime") as mock_datetime, \
+         patch("database.REMINDER_CHECK_INTERVAL", 3600):
+        mock_datetime.now.return_value = mock_time_with_tz
+        mock_datetime.strptime = datetime.strptime
+
+        user_ids = await get_past_dates()
+
+    assert user_id not in user_ids, "В 20:15 (разница=60мин, интервал=1ч) НЕ должно сработать"

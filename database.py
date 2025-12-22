@@ -22,6 +22,7 @@ TO_TIME = int(os.environ.get("TO_TIME") or "23")
 # Настройки напоминаний (читаем напрямую из окружения, чтобы избежать циклических зависимостей)
 REMINDER_TIME = os.environ.get("REMINDER_TIME", "19:15")
 REMINDER_WEEKDAYS_STR = os.environ.get("REMINDER_WEEKDAYS", "")
+REMINDER_CHECK_INTERVAL = int(os.environ.get("REMINDER_CHECK_INTERVAL") or "900")
 # Парсим дни недели
 if REMINDER_WEEKDAYS_STR.strip():
     try:
@@ -640,14 +641,16 @@ async def get_past_dates():
             try:
                 reminder_hour, reminder_minute = map(int, reminder_time_str.split(":"))
 
-                # Проверяем, что текущее время находится в пределах 15 минут от времени напоминания
-                # (так как проверка происходит каждые 15 минут)
+                # Проверяем, что текущее время >= времени напоминания
+                # Окно для отправки зависит от REMINDER_CHECK_INTERVAL
+                check_interval_minutes = REMINDER_CHECK_INTERVAL // 60
                 time_diff = (current_hour * 60 + current_minute) - (
                     reminder_hour * 60 + reminder_minute
                 )
 
-                # Если время напоминания наступило (в пределах последних 15 минут)
-                if 0 <= time_diff < 15:
+                # Если время напоминания наступило (в пределах интервала проверки)
+                # Например, для REMINDER_CHECK_INTERVAL=3600 (1 час), окно = 60 минут
+                if 0 <= time_diff < check_interval_minutes:
                     logger.debug(
                         f"USER{user_id}: время {reminder_time_str} подходит (разница: {time_diff} мин)"
                     )
