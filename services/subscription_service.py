@@ -7,8 +7,8 @@ import asyncio
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
-from config import REQUIRED_CHANNELS, logger
-from database import ChatVerification, Conversation
+from core.config import REQUIRED_CHANNELS, logger
+from core.database import ChatVerification, Conversation
 
 
 async def check_user_subscription(
@@ -183,7 +183,7 @@ async def subscription_check_loop(bot: Bot):
             # ========== ПРОВЕРКА ВЕРИФИЦИРОВАННЫХ ЧАТОВ ==========
             import aiosqlite
 
-            from database import DATABASE_NAME
+            from core.database import DATABASE_NAME
 
             async with aiosqlite.connect(DATABASE_NAME) as db:
                 cursor = await db.execute(

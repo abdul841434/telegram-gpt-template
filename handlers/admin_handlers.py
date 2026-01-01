@@ -12,8 +12,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, ReplyKeyboardRemove
 
 from bot_instance import bot, dp
-from config import ADMIN_CHAT, MESSAGES, logger
-from database import Conversation
+from core.config import ADMIN_CHAT, MESSAGES, logger
+from core.database import Conversation
 from filters import UserIsAdmin
 from services.stats_service import generate_user_stats, get_top_active_users
 from services.subscription_service import is_user_subscribed_to_all
@@ -252,7 +252,7 @@ async def cmd_stats(message: types.Message):
             try:
                 import aiosqlite
 
-                from database import DATABASE_NAME
+                from core.database import DATABASE_NAME
                 all_user_ids = await Conversation.get_ids_from_table()
                 # Фильтруем только личных пользователей (положительные ID)
                 user_ids = [uid for uid in all_user_ids if uid > 0]
@@ -307,7 +307,7 @@ async def cmd_stats(message: types.Message):
                         continue
 
                 # ========== ПРОВЕРКА ГРУППОВЫХ ЧАТОВ ==========
-                from database import ChatVerification
+                from core.database import ChatVerification
 
                 async with aiosqlite.connect(DATABASE_NAME) as db:
                     cursor = await db.execute(
@@ -457,7 +457,7 @@ async def cmd_send_reminders(message: types.Message):
         # Получаем всех пользователей с включенными напоминаниями
         import aiosqlite
 
-        from database import DATABASE_NAME
+        from core.database import DATABASE_NAME
 
         async with (
             aiosqlite.connect(DATABASE_NAME) as db,
@@ -533,7 +533,7 @@ async def cmd_referral_stats(message: types.Message):
     try:
         import aiosqlite
 
-        from database import DATABASE_NAME
+        from core.database import DATABASE_NAME
 
         async with aiosqlite.connect(DATABASE_NAME) as db:
             # Получаем статистику по реферальным кодам

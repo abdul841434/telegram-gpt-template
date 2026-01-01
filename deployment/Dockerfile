@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Копируем файл зависимостей
-COPY requirements.txt .
+COPY requirements/requirements.txt .
 
 # Устанавливаем зависимости
 RUN pip install --no-cache-dir --upgrade pip && \

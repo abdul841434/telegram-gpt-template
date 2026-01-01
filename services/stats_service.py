@@ -12,7 +12,7 @@ import aiosqlite
 import matplotlib
 import matplotlib.pyplot as plt
 
-from database import DATABASE_NAME
+from core.database import DATABASE_NAME
 
 # Используем Agg backend для работы без GUI
 matplotlib.use("Agg")

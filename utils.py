@@ -13,7 +13,7 @@ from aiogram.exceptions import (
 )
 
 from bot_instance import bot
-from config import ADMIN_CHAT, MESSAGES_LEVEL, logger
+from core.config import ADMIN_CHAT, MESSAGES_LEVEL, logger
 
 
 async def keep_typing(chat_id: int, duration: int = 30):

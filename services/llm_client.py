@@ -6,7 +6,7 @@ import os
 import aiohttp
 from dotenv import load_dotenv
 
-from config import logger
+from core.config import logger
 
 load_dotenv()
 LLM_TOKEN = os.environ.get("LLM_TOKEN")

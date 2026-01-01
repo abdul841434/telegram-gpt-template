@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import aiosqlite
 
-from database import Conversation, get_past_dates
+from core.database import Conversation, get_past_dates
 
 
 @pytest.fixture

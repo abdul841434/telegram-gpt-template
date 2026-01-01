@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import aiosqlite
 from aiogram.exceptions import TelegramForbiddenError
 
-from database import Conversation
+from core.database import Conversation
 
 
 @pytest.fixture

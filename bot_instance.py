@@ -4,7 +4,7 @@
 
 from aiogram import Bot, Dispatcher
 
-from config import TG_TOKEN
+from core.config import TG_TOKEN
 
 bot = Bot(token=TG_TOKEN)
 dp = Dispatcher()

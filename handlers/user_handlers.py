@@ -8,8 +8,8 @@ from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from bot_instance import bot, dp
-from config import ADMIN_CHAT, MESSAGES, REQUIRED_CHANNELS, logger
-from database import Conversation, delete_chat_data
+from core.config import ADMIN_CHAT, MESSAGES, REQUIRED_CHANNELS, logger
+from core.database import Conversation, delete_chat_data
 from filters import OldMessage, UserNotInDB
 from handlers.subscription_handlers import send_subscription_request
 from utils import forward_to_debug

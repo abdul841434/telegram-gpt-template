@@ -8,8 +8,8 @@ from aiogram import F, types
 from aiogram.exceptions import TelegramForbiddenError
 
 from bot_instance import bot, dp
-from config import ADMIN_CHAT, MESSAGES, logger
-from database import Conversation
+from core.config import ADMIN_CHAT, MESSAGES, logger
+from core.database import Conversation
 from services.llm_service import (
     get_llm_response,
     process_user_image,

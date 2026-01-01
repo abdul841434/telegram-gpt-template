@@ -24,7 +24,7 @@ sys.modules["matplotlib.pyplot"] = MagicMock()
 
 import aiosqlite  # noqa: E402
 
-from database import Conversation, get_past_dates  # noqa: E402
+from core.database import Conversation, get_past_dates  # noqa: E402
 from services.stats_service import get_inactive_users_count  # noqa: E402
 
 

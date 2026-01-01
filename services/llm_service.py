@@ -10,12 +10,12 @@ from datetime import datetime, timedelta, timezone
 import cv2
 import telegramify_markdown
 
-from config import (
+from core.config import (
     FULL_LEVEL,
     SYSTEM_PROMPT,
     logger,
 )
-from database import Conversation
+from core.database import Conversation
 from services.llm_client import send_image_to_vision_model, send_request_to_openrouter
 
 

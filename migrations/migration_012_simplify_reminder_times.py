@@ -13,7 +13,7 @@ import json
 
 import aiosqlite
 
-from database import DATABASE_NAME
+from core.database import DATABASE_NAME
 
 # Уникальный идентификатор миграции
 MIGRATION_ID = "migration_012_simplify_reminder_times"

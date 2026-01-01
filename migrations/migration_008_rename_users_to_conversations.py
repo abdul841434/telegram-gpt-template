@@ -13,7 +13,7 @@
 
 import aiosqlite
 
-from database import DATABASE_NAME
+from core.database import DATABASE_NAME
 
 # Уникальный идентификатор миграции
 MIGRATION_ID = "migration_008_rename_users_to_conversations"

@@ -8,8 +8,8 @@ from typing import Any
 from aiogram import BaseMiddleware
 from aiogram.types import Message
 
-from config import ADMIN_CHAT, REQUIRED_CHANNELS, logger
-from database import ChatVerification, Conversation, user_exists
+from core.config import ADMIN_CHAT, REQUIRED_CHANNELS, logger
+from core.database import ChatVerification, Conversation, user_exists
 from handlers.subscription_handlers import send_subscription_request
 from utils import is_private_chat
 

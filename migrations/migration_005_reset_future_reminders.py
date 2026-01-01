@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 import aiosqlite
 
-from database import DATABASE_NAME, TIMEZONE_OFFSET
+from core.database import DATABASE_NAME, TIMEZONE_OFFSET
 
 # Уникальный идентификатор миграции
 MIGRATION_ID = "migration_005_reset_future_reminders"

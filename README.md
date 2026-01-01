@@ -131,9 +131,9 @@ python main.py
 ### Основные модули:
 
 - **`main.py`** — точка входа, запуск приложения
-- **`config.py`** — конфигурация, загрузка переменных окружения, настройка логирования
 - **`bot_instance.py`** — инициализация бота и диспетчера
-- **`database.py`** — модели данных и работа с БД
+- **`core/config.py`** — конфигурация, загрузка переменных окружения, настройка логирования
+- **`core/database.py`** — модели данных и работа с БД
 
 ### Вспомогательные модули:
 
@@ -152,7 +152,6 @@ python main.py
 
 - **`llm_client.py`** — клиент для работы с OpenRouter API
 - **`llm_service.py`** — логика взаимодействия с LLM, обработка запросов
-- **`reminder_service.py`** — логика напоминаний, фоновая задача
 - **`subscription_service.py`** — проверка подписок на каналы
 - **`message_buffer.py`** — буферизация сообщений
 - **`stats_service.py`** — статистика и графики
@@ -166,6 +165,9 @@ telegram-gpt/
 │       └── deploy.yml         # GitHub Actions CI/CD
 ├── config/                     # Конфигурационные файлы
 │   └── messages.json          # Шаблоны сообщений
+├── core/                       # Ядро приложения
+│   ├── config.py              # Конфигурация и настройки
+│   └── database.py            # Работа с базой данных
 ├── deployment/                 # Файлы для деплоя
 │   ├── Dockerfile             # Docker образ
 │   ├── docker-compose.yml     # Docker Compose для dev
@@ -188,7 +190,6 @@ telegram-gpt/
 │   ├── __init__.py
 │   ├── llm_client.py          # Клиент OpenRouter API
 │   ├── llm_service.py         # Работа с LLM
-│   ├── reminder_service.py    # Логика напоминаний
 │   ├── subscription_service.py # Проверка подписок
 │   ├── message_buffer.py      # Буферизация сообщений
 │   └── stats_service.py       # Статистика
@@ -197,18 +198,17 @@ telegram-gpt/
 │   ├── migration_manager.py   # Менеджер миграций
 │   └── migration_001_*.py     # Файлы миграций
 ├── tests/                      # Тесты
+├── requirements/               # Зависимости Python
+│   ├── requirements.txt       # Основные зависимости
+│   └── requirements-dev.txt   # Зависимости для разработки
 ├── data/                       # База данных (создается автоматически)
 ├── logs/                       # Логи (создается автоматически)
 ├── main.py                     # Точка входа приложения
-├── config.py                   # Конфигурация и настройки
 ├── bot_instance.py             # Инициализация бота
 ├── filters.py                  # Пользовательские фильтры
 ├── states.py                   # FSM состояния
 ├── utils.py                    # Вспомогательные функции
-├── database.py                 # Работа с базой данных
 ├── middlewares.py              # Middleware для aiogram
-├── requirements.txt           # Зависимости Python
-├── requirements-dev.txt       # Зависимости для разработки
 ├── README.md                  # Основная документация
 ├── .env.example               # Пример переменных окружения
 └── .gitignore                 # Игнорируемые файлы

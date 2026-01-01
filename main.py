@@ -6,13 +6,13 @@
 import asyncio
 import contextlib
 
-import database
+import core.database as database
 from migrations.migration_manager import run_migrations
 
 # Импортируем все обработчики (чтобы они зарегистрировались)
 # ВАЖНО: порядок имеет значение! Сначала специфичные (команды), потом общие
 from bot_instance import bot, dp
-from config import ADMIN_CHAT, add_telegram_handler, logger
+from core.config import ADMIN_CHAT, add_telegram_handler, logger
 
 # isort: off - не сортировать этот блок, порядок критичен!
 from handlers import user_handlers  # noqa: F401

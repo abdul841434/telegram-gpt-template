@@ -7,9 +7,9 @@ from datetime import UTC, datetime, timedelta
 from aiogram import types
 from aiogram.filters import Filter
 
-import database
-from config import ADMIN_CHAT, FULL_LEVEL, logger
-from database import Conversation
+import core.database as database
+from core.config import ADMIN_CHAT, FULL_LEVEL, logger
+from core.database import Conversation
 
 
 class UserNotInDB(Filter):

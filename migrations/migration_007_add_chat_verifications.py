@@ -10,7 +10,7 @@
 
 import aiosqlite
 
-from database import DATABASE_NAME
+from core.database import DATABASE_NAME
 
 # Уникальный идентификатор миграции
 MIGRATION_ID = "migration_007_add_chat_verifications"

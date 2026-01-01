@@ -9,8 +9,8 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot_instance import bot, dp
-from config import MESSAGES, REQUIRED_CHANNELS, logger
-from database import ChatVerification, Conversation
+from core.config import MESSAGES, REQUIRED_CHANNELS, logger
+from core.database import ChatVerification, Conversation
 from services.subscription_service import is_user_subscribed_to_all
 from utils import is_private_chat
 

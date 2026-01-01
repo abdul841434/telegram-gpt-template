@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 
 import aiosqlite
 
-from database import DATABASE_NAME
+from core.database import DATABASE_NAME
 
 # Уникальный идентификатор миграции
 MIGRATION_ID = "migration_011_add_is_active"
