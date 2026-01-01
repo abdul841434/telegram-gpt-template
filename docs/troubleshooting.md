@@ -58,13 +58,13 @@ docker logs --tail=50 telegram-gpt
 nano .env
 
 # Перезапустите бота
-docker-compose restart  # или python main.py
+docker-compose -f deployment/docker-compose.yml restart  # или python main.py
 ```
 
 **Бот не запущен:**
 ```bash
 # Docker
-docker-compose up -d
+docker-compose -f deployment/docker-compose.yml up -d
 
 # Локально
 python main.py
@@ -190,13 +190,13 @@ python main.py  # БД будет создана заново
 **База блокируется (Docker):**
 ```bash
 # Убедитесь, что volume правильно смонтирован
-docker-compose down
-docker-compose up -d
+docker-compose -f deployment/docker-compose.yml down
+docker-compose -f deployment/docker-compose.yml up -d
 ```
 
 **Потеря данных после перезапуска (Docker):**
 
-Проверьте `docker-compose.yml`:
+Проверьте `deployment/docker-compose.yml`:
 ```yaml
 volumes:
   - ./data:/data  # Должен быть смонтирован
@@ -230,14 +230,14 @@ kill -9 <PID>
 
 ```bash
 # Остановите контейнер
-docker-compose down
+docker-compose -f deployment/docker-compose.yml down
 
 # Принудительная остановка
 docker kill telegram-gpt
 docker rm telegram-gpt
 
 # Перезапуск
-docker-compose up -d
+docker-compose -f deployment/docker-compose.yml up -d
 ```
 
 ---
@@ -268,7 +268,7 @@ docker logs --tail=100 telegram-gpt
 
 ### Образ не собирается
 
-**Проблема:** `docker build` или `docker-compose build` завершается с ошибкой
+**Проблема:** `docker build` или `docker-compose -f deployment/docker-compose.yml build` завершается с ошибкой
 
 **Решение:**
 
@@ -277,7 +277,7 @@ docker logs --tail=100 telegram-gpt
 docker system prune -a
 
 # Пересоберите образ
-docker-compose build --no-cache
+docker-compose -f deployment/docker-compose.yml build --no-cache
 
 # Проверьте синтаксис Dockerfile
 ```
@@ -316,7 +316,7 @@ docker system prune -a --volumes
 REQUIRED_CHANNELS=@channel1,@channel2  # С @ и через запятую без пробелов
 
 # 3. Перезапустите бота
-docker-compose restart
+docker-compose -f deployment/docker-compose.yml restart
 ```
 
 ### Отключить систему подписки
@@ -350,7 +350,7 @@ grep "reminder" logs/debug.log
 # Проверьте часовой пояс
 
 # Перезапустите бота
-docker-compose restart
+docker-compose -f deployment/docker-compose.yml restart
 ```
 
 ### Напоминания приходят в неправильное время
@@ -388,7 +388,7 @@ chmod 755 logs
 FILE_LOG_LEVEL=INFO  # Не DISABLED
 
 # Перезапустите бота
-docker-compose restart
+docker-compose -f deployment/docker-compose.yml restart
 
 # Проверьте инициализацию логгера
 grep "Logger initialized" logs/debug.log
@@ -411,7 +411,7 @@ cat .env | grep -E "TELEGRAM_LOG_LEVEL|ADMIN_CHAT"
 # Напишите боту /start
 
 # 3. Перезапустите бота
-docker-compose restart
+docker-compose -f deployment/docker-compose.yml restart
 ```
 
 ---
@@ -457,7 +457,7 @@ grep "markdown" logs/debug.log
 FILE_LOG_LEVEL=DEBUG
 
 # Перезапустите бота
-docker-compose restart
+docker-compose -f deployment/docker-compose.yml restart
 
 # Проверьте логи
 tail -f logs/debug.log
@@ -480,10 +480,10 @@ docker stats telegram-gpt
 
 ```bash
 # Остановите основного бота
-docker-compose down
+docker-compose -f deployment/docker-compose.yml down
 
 # Запустите в интерактивном режиме
-docker-compose up
+docker-compose -f deployment/docker-compose.yml up
 
 # Проверьте вывод в консоль
 # Ctrl+C для остановки

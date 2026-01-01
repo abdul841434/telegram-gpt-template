@@ -9,7 +9,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from bot_instance import bot, dp
-from config import MESSAGES, REQUIRED_CHANNELS, TIMEZONE_OFFSET, logger
+from config import MESSAGES, REQUIRED_CHANNELS, logger
 from database import ChatVerification, Conversation
 from services.subscription_service import is_user_subscribed_to_all
 from utils import is_private_chat
@@ -101,7 +101,7 @@ async def process_subscription_check(callback_query: types.CallbackQuery):
             if is_chat:
                 # === ГРУППОВОЙ ЧАТ ===
                 # Создаем/обновляем запись о верификации чата
-                current_time = datetime.now(timezone(timedelta(hours=TIMEZONE_OFFSET)))
+                current_time = datetime.now(timezone.utc)
                 timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S")
 
                 # Получаем имя пользователя

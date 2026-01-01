@@ -35,7 +35,6 @@ jobs:
 
       - name: Validate JSON configs
         run: |
-          python -c "import json; json.load(open('config/prompts.json'))"
           python -c "import json; json.load(open('config/messages.json'))"
 
   build-and-push:
@@ -63,8 +62,8 @@ jobs:
         run: |
           IMAGE_TAG="${{ env.REGISTRY }}/${{ secrets.YC_REGISTRY_ID }}/${{ env.IMAGE_NAME }}"
 
-          # Собираем образ
-          docker build -t ${IMAGE_TAG}:latest -t ${IMAGE_TAG}:${{ github.sha }} .
+          # Собираем образ из deployment директории
+          docker build -f deployment/Dockerfile -t ${IMAGE_TAG}:latest -t ${IMAGE_TAG}:${{ github.sha }} .
 
           # Пушим оба тега
           docker push ${IMAGE_TAG}:latest
@@ -83,8 +82,9 @@ jobs:
           host: ${{ secrets.YC_INSTANCE_IP }}
           username: ${{ secrets.YC_INSTANCE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml"
+          source: "deployment/docker-compose.prod.yml"
           target: "~/telegram-gpt/"
+          strip_components: 1
 
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.3

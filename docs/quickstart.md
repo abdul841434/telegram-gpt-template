@@ -22,7 +22,7 @@ ADMIN_CHAT=ваш_chat_id
 
 ```bash
 # 3. Запустите!
-docker-compose up -d
+docker-compose -f deployment/docker-compose.yml up -d
 ```
 
 **Готово!** 🎉 Бот запущен.
@@ -31,13 +31,13 @@ docker-compose up -d
 
 ```bash
 # Логи
-docker-compose logs -f
+docker-compose -f deployment/docker-compose.yml logs -f
 
 # Остановка
-docker-compose down
+docker-compose -f deployment/docker-compose.yml down
 
 # Перезапуск
-docker-compose restart
+docker-compose -f deployment/docker-compose.yml restart
 ```
 
 ---

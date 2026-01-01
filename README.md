@@ -87,7 +87,7 @@ Telegram-бот на основе ChatGPT, который:
 ```bash
 git clone <repository-url> && cd telegram-gpt
 cp .env.example .env && nano .env  # Заполните 4 токена
-docker-compose up -d
+docker-compose -f deployment/docker-compose.yml up -d
 ```
 
 Вот и всё! Бот запущен. 
@@ -165,8 +165,11 @@ telegram-gpt/
 │   └── workflows/
 │       └── deploy.yml         # GitHub Actions CI/CD
 ├── config/                     # Конфигурационные файлы
-│   ├── prompts.json           # Системные промпты для LLM
 │   └── messages.json          # Шаблоны сообщений
+├── deployment/                 # Файлы для деплоя
+│   ├── Dockerfile             # Docker образ
+│   ├── docker-compose.yml     # Docker Compose для dev
+│   └── docker-compose.prod.yml # Docker Compose для prod
 ├── docs/                       # Документация
 │   ├── quickstart.md          # Быстрый старт за 3 минуты
 │   ├── deployment.md          # Полное руководство по развертыванию
@@ -206,9 +209,6 @@ telegram-gpt/
 ├── middlewares.py              # Middleware для aiogram
 ├── requirements.txt           # Зависимости Python
 ├── requirements-dev.txt       # Зависимости для разработки
-├── Dockerfile                 # Docker образ
-├── docker-compose.yml         # Docker Compose конфигурация
-├── .dockerignore              # Исключения для Docker
 ├── README.md                  # Основная документация
 ├── .env.example               # Пример переменных окружения
 └── .gitignore                 # Игнорируемые файлы

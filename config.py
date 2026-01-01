@@ -34,6 +34,7 @@ logging.addLevelName(MESSAGES_LEVEL, "MESSAGES")
 LLM_TOKEN = os.environ.get("LLM_TOKEN")
 VISION_MODEL = os.environ.get("VISION_MODEL", "google/gemini-2.0-flash-001")
 SYSTEM_PROMPT = os.environ.get("SYSTEM_PROMPT", "")
+DEFAULT_PROMPT = os.environ.get("DEFAULT_PROMPT", "")
 
 # База данных
 DATABASE_NAME = os.environ.get("DATABASE_NAME")
