@@ -219,20 +219,3 @@ async def cmd_forget(message: types.Message):
     if message.chat.id != ADMIN_CHAT:
         await forward_to_debug(message.chat.id, message.message_id)
         await forward_to_debug(message.chat.id, sent_msg.message_id)
-
-
-@dp.message(Command("mute"))
-async def cmd_mute(message: types.Message):
-    """Команда /mute - отключение напоминаний."""
-    sent_msg = await message.answer(
-        MESSAGES["msg_mute"], reply_markup=ReplyKeyboardRemove()
-    )
-    conversation = Conversation(message.chat.id)
-    await conversation.get_from_db()
-    conversation.remind_of_yourself = "0"
-    await conversation.update_in_db()
-
-    # Не пересылаем сообщения из админ-чата в админ-чат
-    if message.chat.id != ADMIN_CHAT:
-        await forward_to_debug(message.chat.id, message.message_id)
-        await forward_to_debug(message.chat.id, sent_msg.message_id)

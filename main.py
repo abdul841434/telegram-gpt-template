@@ -22,7 +22,6 @@ from handlers import message_handlers  # noqa: F401
 # isort: on
 
 from middlewares import SubscriptionMiddleware
-from services.reminder_service import reminder_loop
 from services.subscription_service import subscription_check_loop
 
 
@@ -49,8 +48,7 @@ async def main():
     print("Нажмите Ctrl-C для остановки бота")
     print("=" * 50 + "\n")
 
-    # Создаем задачи для напоминаний и проверки подписок
-    reminder_task = asyncio.create_task(reminder_loop())
+    # Создаем задачу для проверки подписок
     subscription_task = asyncio.create_task(subscription_check_loop(bot))
 
     try:
@@ -62,10 +60,8 @@ async def main():
         logger.critical(f"CRITICAL_ERROR: {e}", exc_info=True)
     finally:
         print("Останавливаем бота...")
-        reminder_task.cancel()
         subscription_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
-            await reminder_task
             await subscription_task
         await bot.session.close()
         print("✅ Бот остановлен")

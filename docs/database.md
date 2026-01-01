@@ -13,7 +13,6 @@
 | `id` | INTEGER | Telegram chat ID (PRIMARY KEY) |
 | `name` | TEXT | Username пользователя или название чата |
 | `prompt` | JSON | История диалога (массив сообщений) |
-| `remind_of_yourself` | TEXT | Дата/время следующего напоминания |
 | `sub_lvl` | INTEGER | Уровень подписки |
 | `sub_id` | TEXT | ID подписки |
 | `sub_period` | INTEGER | Период подписки |
@@ -31,7 +30,6 @@
 | `chat_id` | INTEGER | Telegram chat ID |
 | `role` | TEXT | Роль: `"user"` или `"assistant"` |
 | `content` | TEXT | Текст сообщения |
-| `timestamp` | TEXT | Дата и время сообщения (ISO 8601 с учетом TIMEZONE_OFFSET) |
 
 ### Таблица `chat_verifications`
 
@@ -59,7 +57,6 @@
 |------|-----|----------|
 | `role` | string | Роль: `"user"` или `"assistant"` |
 | `content` | string | Текст сообщения |
-| `timestamp` | string\|null | Время отправки с учетом TIMEZONE_OFFSET (или `null` для старых сообщений) |
 
 **Примечание:** Старые сообщения, созданные до миграции, могут иметь `timestamp: null`.
 
@@ -88,9 +85,6 @@
 |----------|----------|
 | `001` | Добавление `timestamp` в сообщения |
 | `002` | Создание отдельной таблицы `messages` |
-| `003` | Добавление настроек времени напоминаний |
-| `004` | Исправление значений по умолчанию для напоминаний |
-| `005` | Сброс будущих напоминаний |
 | `006` | Добавление флага `subscription_verified` |
 | `007` | Добавление таблицы `chat_verifications` |
 | `008` | Переименование `users` → `conversations` |

@@ -40,40 +40,14 @@ DATABASE_NAME = os.environ.get("DATABASE_NAME")
 MAX_CONTEXT = int(os.environ.get("MAX_CONTEXT") or "10")
 MAX_STORAGE = int(os.environ.get("MAX_STORAGE", "100"))  # Количество сообщений в БД
 
-# Напоминания
-DELAYED_REMINDERS_HOURS = int(os.environ.get("DELAYED_REMINDERS_HOURS") or "2")
-DELAYED_REMINDERS_MINUTES = int(os.environ.get("DELAYED_REMINDERS_MINUTES") or "0")
-TIMEZONE_OFFSET = int(os.environ.get("TIMEZONE_OFFSET") or "3")
-FROM_TIME = int(os.environ.get("FROM_TIME") or "9")
-TO_TIME = int(os.environ.get("TO_TIME") or "23")
-INACTIVE_USER_DAYS = int(os.environ.get("INACTIVE_USER_DAYS") or "7")  # Количество дней неактивности для отключения напоминаний
-
-# Время и дни недели для напоминаний (глобальные настройки для всех пользователей)
-REMINDER_TIME = os.environ.get("REMINDER_TIME", "19:15")  # Время напоминания в формате HH:MM (МСК)
-REMINDER_WEEKDAYS_STR = os.environ.get("REMINDER_WEEKDAYS", "")  # Дни недели через запятую (0=Пн, 6=Вс), пусто = все дни
-# Парсим дни недели
-if REMINDER_WEEKDAYS_STR.strip():
-    try:
-        REMINDER_WEEKDAYS = [int(x.strip()) for x in REMINDER_WEEKDAYS_STR.split(",") if x.strip()]
-        # Валидация: только числа от 0 до 6
-        REMINDER_WEEKDAYS = [wd for wd in REMINDER_WEEKDAYS if 0 <= wd <= 6]
-    except (ValueError, AttributeError):
-        REMINDER_WEEKDAYS = []
-else:
-    REMINDER_WEEKDAYS = []  # Пустой список = все дни недели
-
-# Интервал проверки напоминаний (в секундах)
-REMINDER_CHECK_INTERVAL = int(os.environ.get("REMINDER_CHECK_INTERVAL") or "900")  # По умолчанию 15 минут (900 секунд)
+# Интервал проверки подписки (в секундах)
+SUBSCRIPTION_CHECK_INTERVAL = int(os.environ.get("SUBSCRIPTION_CHECK_INTERVAL") or "1800")  # По умолчанию 30 минут
 
 # Ссылка на форму обратной связи (опционально)
 FEEDBACK_FORM_URL = os.environ.get("FEEDBACK_FORM_URL", "")
 
 
-# Загрузка промптов и сообщений
-with open("config/prompts.json", encoding="utf-8") as f:
-    PROMPTS = json.load(f)
-    REMINDER_PROMPTS = PROMPTS["REMINDER_PROMPTS"]  # Словарь с разными типами промптов
-
+# Загрузка сообщений
 with open("config/messages.json", encoding="utf-8") as f:
     MESSAGES = json.load(f)
 

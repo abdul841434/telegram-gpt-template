@@ -96,14 +96,6 @@ jobs:
           DEBUG: ${{ secrets.DEBUG || '0' }}
           MAX_CONTEXT: ${{ secrets.MAX_CONTEXT || '20' }}
           MAX_STORAGE: ${{ secrets.MAX_STORAGE || '100' }}
-          DELAYED_REMINDERS_HOURS: ${{ secrets.DELAYED_REMINDERS_HOURS || '2' }}
-          DELAYED_REMINDERS_MINUTES: ${{ secrets.DELAYED_REMINDERS_MINUTES || '0' }}
-          TIMEZONE_OFFSET: ${{ secrets.TIMEZONE_OFFSET || '3' }}
-          FROM_TIME: ${{ secrets.FROM_TIME || '9' }}
-          TO_TIME: ${{ secrets.TO_TIME || '23' }}
-          REMINDER_TIME: ${{ secrets.REMINDER_TIME || '19:15' }}
-          REMINDER_WEEKDAYS: ${{ secrets.REMINDER_WEEKDAYS || '' }}
-          REMINDER_CHECK_INTERVAL: ${{ secrets.REMINDER_CHECK_INTERVAL || '900' }}
           FEEDBACK_FORM_URL: ${{ secrets.FEEDBACK_FORM_URL || '' }}
           ADMIN_LIST: ${{ secrets.ADMIN_LIST || '' }}
           REQUIRED_CHANNELS: ${{ secrets.REQUIRED_CHANNELS || '' }}
@@ -116,7 +108,7 @@ jobs:
           host: ${{ secrets.YC_INSTANCE_IP }}
           username: ${{ secrets.YC_INSTANCE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,MAX_CONTEXT,MAX_STORAGE,DELAYED_REMINDERS_HOURS,DELAYED_REMINDERS_MINUTES,TIMEZONE_OFFSET,FROM_TIME,TO_TIME,REMINDER_TIME,REMINDER_WEEKDAYS,REMINDER_CHECK_INTERVAL,FEEDBACK_FORM_URL,ADMIN_LIST,REQUIRED_CHANNELS,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,YC_REGISTRY_ID,NEW_IMAGE,BACKUP_IMAGE
+          envs: TG_TOKEN,LLM_TOKEN,ADMIN_CHAT,MODEL,DEBUG,MAX_CONTEXT,MAX_STORAGE,FEEDBACK_FORM_URL,ADMIN_LIST,REQUIRED_CHANNELS,FILE_LOG_LEVEL,TELEGRAM_LOG_LEVEL,YC_REGISTRY_ID,NEW_IMAGE,BACKUP_IMAGE
           script: |
             set -e  # Остановка при ошибке
 
@@ -231,14 +223,6 @@ jobs:
                 echo "DEBUG=$DEBUG"
                 echo "MAX_CONTEXT=$MAX_CONTEXT"
                 echo "MAX_STORAGE=$MAX_STORAGE"
-                echo "DELAYED_REMINDERS_HOURS=$DELAYED_REMINDERS_HOURS"
-                echo "DELAYED_REMINDERS_MINUTES=$DELAYED_REMINDERS_MINUTES"
-                echo "TIMEZONE_OFFSET=$TIMEZONE_OFFSET"
-                echo "FROM_TIME=$FROM_TIME"
-                echo "TO_TIME=$TO_TIME"
-                echo "REMINDER_TIME=$REMINDER_TIME"
-                echo "REMINDER_WEEKDAYS=$REMINDER_WEEKDAYS"
-                echo "REMINDER_CHECK_INTERVAL=$REMINDER_CHECK_INTERVAL"
                 echo "ADMIN_LIST=$ADMIN_LIST"
                 echo "REQUIRED_CHANNELS=$REQUIRED_CHANNELS"
                 echo "FILE_LOG_LEVEL=$FILE_LOG_LEVEL"
