@@ -484,4 +484,3 @@ docker-compose -f deployment/docker-compose.yml up
 ---
 
 **[← Вернуться к README](../README.md)**
-
