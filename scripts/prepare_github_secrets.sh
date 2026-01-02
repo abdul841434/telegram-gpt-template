@@ -61,11 +61,15 @@ fi
 echo "📦 Доступные Container Registry:"
 yc container registry list
 echo ""
-read -p "Введите Registry ID (crp...): " REGISTRY_ID
+read -p "Введите Registry ID (crp...) или оставьте пустым для создания нового: " REGISTRY_ID
 
 if [ -z "$REGISTRY_ID" ]; then
-    echo -e "${RED}❌ Registry ID обязателен!${NC}"
-    exit 1
+    read -p "Введите имя нового Registry [telegram-gpt-registry]: " REGISTRY_NAME
+    REGISTRY_NAME=${REGISTRY_NAME:-telegram-gpt-registry}
+    
+    echo "Создаем Container Registry..."
+    REGISTRY_ID=$(yc container registry create --name "$REGISTRY_NAME" --format json | jq -r .id)
+    echo -e "${GREEN}✅ Container Registry создан: $REGISTRY_NAME ($REGISTRY_ID)${NC}"
 fi
 
 # 3. Выбор Service Account
