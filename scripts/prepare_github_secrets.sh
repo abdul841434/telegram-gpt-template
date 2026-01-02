@@ -92,7 +92,48 @@ if [ -z "$SA_ID" ]; then
       --service-account-id "$SA_ID" \
       --role container-registry.images.pusher
     
+    yc container registry add-access-binding \
+      --id "$REGISTRY_ID" \
+      --service-account-id "$SA_ID" \
+      --role container-registry.images.puller
+    
     echo -e "${GREEN}✅ Service Account создан: $SA_ID${NC}"
+else
+    # Проверяем права существующего Service Account
+    echo ""
+    echo "🔍 Проверяем права Service Account на Registry..."
+    
+    BINDINGS=$(yc container registry list-access-bindings --id "$REGISTRY_ID" --format json)
+    HAS_PUSHER=$(echo "$BINDINGS" | jq -r ".[] | select(.subject.id==\"$SA_ID\" and .role_id==\"container-registry.images.pusher\") | .role_id")
+    HAS_PULLER=$(echo "$BINDINGS" | jq -r ".[] | select(.subject.id==\"$SA_ID\" and .role_id==\"container-registry.images.puller\") | .role_id")
+    
+    NEEDS_UPDATE=false
+    
+    if [ -z "$HAS_PUSHER" ]; then
+        echo -e "${YELLOW}⚠️  Права pusher отсутствуют, добавляем...${NC}"
+        yc container registry add-access-binding \
+          --id "$REGISTRY_ID" \
+          --service-account-id "$SA_ID" \
+          --role container-registry.images.pusher
+        NEEDS_UPDATE=true
+    else
+        echo -e "${GREEN}✅ Права pusher уже есть${NC}"
+    fi
+    
+    if [ -z "$HAS_PULLER" ]; then
+        echo -e "${YELLOW}⚠️  Права puller отсутствуют, добавляем...${NC}"
+        yc container registry add-access-binding \
+          --id "$REGISTRY_ID" \
+          --service-account-id "$SA_ID" \
+          --role container-registry.images.puller
+        NEEDS_UPDATE=true
+    else
+        echo -e "${GREEN}✅ Права puller уже есть${NC}"
+    fi
+    
+    if [ "$NEEDS_UPDATE" = false ]; then
+        echo -e "${GREEN}✅ Все права уже настроены${NC}"
+    fi
 fi
 
 # 4. Создаем ключ для Service Account
@@ -112,33 +153,127 @@ echo ""
 echo "🔍 Ищем SSH ключи..."
 SSH_KEY_PATH=""
 
+# Собираем все доступные SSH ключи
+SSH_KEYS=()
+
 # Проверяем переменную окружения
 if [ -n "$SSH_PRIVATE_KEY_PATH" ] && [ -f "$SSH_PRIVATE_KEY_PATH" ]; then
-    SSH_KEY_PATH="$SSH_PRIVATE_KEY_PATH"
-    echo -e "${GREEN}✅ Найден ключ из переменной окружения: $SSH_KEY_PATH${NC}"
-# Ищем ключи Yandex Cloud по паттерну
-elif compgen -G ~/.ssh/yc-*"$YC_INSTANCE_USER" > /dev/null; then
-    SSH_KEY_PATH=$(ls ~/.ssh/yc-*"$YC_INSTANCE_USER" 2>/dev/null | grep -v '\.pub$' | head -n 1)
-    echo -e "${GREEN}✅ Найден YC ключ: $SSH_KEY_PATH${NC}"
-# Ищем ключи Yandex Cloud общие
-elif compgen -G ~/.ssh/yc-* > /dev/null; then
-    SSH_KEY_PATH=$(ls ~/.ssh/yc-* 2>/dev/null | grep -v '\.pub$' | head -n 1)
-    echo -e "${GREEN}✅ Найден YC ключ: $SSH_KEY_PATH${NC}"
-# Проверяем стандартные ключи
-elif [ -f ~/.ssh/id_rsa ]; then
-    SSH_KEY_PATH=~/.ssh/id_rsa
-    echo -e "${GREEN}✅ Найден ключ: $SSH_KEY_PATH${NC}"
-elif [ -f ~/.ssh/id_ed25519 ]; then
-    SSH_KEY_PATH=~/.ssh/id_ed25519
-    echo -e "${GREEN}✅ Найден ключ: $SSH_KEY_PATH${NC}"
+    SSH_KEYS+=("$SSH_PRIVATE_KEY_PATH")
 fi
 
-if [ -z "$SSH_KEY_PATH" ]; then
+# Ищем ключи Yandex Cloud по паттерну с пользователем
+shopt -s nullglob
+for key in ~/.ssh/yc-*"$YC_INSTANCE_USER"; do
+    if [ -f "$key" ] && [[ ! "$key" =~ \.pub$ ]] && [[ ! "$key" =~ -cert\.pub$ ]]; then
+        SSH_KEYS+=("$key")
+    fi
+done
+
+# Ищем ключи Yandex Cloud общие
+for key in ~/.ssh/yc-*; do
+    if [ -f "$key" ] && [[ ! "$key" =~ \.pub$ ]] && [[ ! "$key" =~ -cert\.pub$ ]]; then
+        # Проверяем, что ключ еще не добавлен
+        if [[ ! " ${SSH_KEYS[@]} " =~ " ${key} " ]]; then
+            SSH_KEYS+=("$key")
+        fi
+    fi
+done
+shopt -u nullglob
+
+# Проверяем стандартные ключи
+if [ -f ~/.ssh/id_rsa ] && [[ ! " ${SSH_KEYS[@]} " =~ " $HOME/.ssh/id_rsa " ]]; then
+    SSH_KEYS+=("$HOME/.ssh/id_rsa")
+fi
+if [ -f ~/.ssh/id_ed25519 ] && [[ ! " ${SSH_KEYS[@]} " =~ " $HOME/.ssh/id_ed25519 " ]]; then
+    SSH_KEYS+=("$HOME/.ssh/id_ed25519")
+fi
+
+# Если ключей несколько - даем выбрать
+if [ ${#SSH_KEYS[@]} -eq 0 ]; then
+    echo -e "${YELLOW}⚠️  SSH ключи не найдены${NC}"
     read -p "Введите путь к SSH приватному ключу: " SSH_KEY_PATH
+elif [ ${#SSH_KEYS[@]} -eq 1 ]; then
+    SSH_KEY_PATH="${SSH_KEYS[0]}"
+    echo -e "${GREEN}✅ Найден ключ: $SSH_KEY_PATH${NC}"
+else
+    echo -e "${YELLOW}📋 Найдено несколько SSH ключей:${NC}"
+    for i in "${!SSH_KEYS[@]}"; do
+        # Извлекаем только имя файла для более читаемого вывода
+        KEY_NAME=$(basename "${SSH_KEYS[$i]}")
+        echo "  $((i+1))) $KEY_NAME"
+        echo "     Путь: ${SSH_KEYS[$i]}"
+    done
+    echo ""
+    
+    # Проверяем подключение для каждого ключа
+    echo "🔍 Проверяем подключение к серверу $YC_INSTANCE_USER@$YC_INSTANCE_IP..."
+    WORKING_KEYS=()
+    for key in "${SSH_KEYS[@]}"; do
+        KEY_NAME=$(basename "$key")
+        if ssh -i "$key" -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o BatchMode=yes "$YC_INSTANCE_USER@$YC_INSTANCE_IP" "exit" 2>/dev/null; then
+            echo -e "${GREEN}✅ $KEY_NAME - работает${NC}"
+            WORKING_KEYS+=("$key")
+        else
+            echo -e "${RED}❌ $KEY_NAME - не подходит${NC}"
+        fi
+    done
+    
+    if [ ${#WORKING_KEYS[@]} -eq 0 ]; then
+        echo ""
+        echo -e "${RED}❌ Ни один из ключей не подошел!${NC}"
+        echo "Возможные причины:"
+        echo "  - Неверный IP адрес или имя пользователя"
+        echo "  - Сервер недоступен"
+        echo "  - Ключи не настроены на сервере"
+        echo ""
+        read -p "Введите путь к SSH приватному ключу вручную: " SSH_KEY_PATH
+    elif [ ${#WORKING_KEYS[@]} -eq 1 ]; then
+        SSH_KEY_PATH="${WORKING_KEYS[0]}"
+        KEY_NAME=$(basename "$SSH_KEY_PATH")
+        echo ""
+        echo -e "${GREEN}✅ Автоматически выбран рабочий ключ: $KEY_NAME${NC}"
+        echo "   Путь: $SSH_KEY_PATH"
+    else
+        echo ""
+        echo -e "${YELLOW}📋 Найдено ${#WORKING_KEYS[@]} рабочих ключа:${NC}"
+        for i in "${!WORKING_KEYS[@]}"; do
+            KEY_NAME=$(basename "${WORKING_KEYS[$i]}")
+            echo "  $((i+1))) $KEY_NAME"
+            echo "     Путь: ${WORKING_KEYS[$i]}"
+        done
+        echo ""
+        read -p "Выберите номер ключа (1-${#WORKING_KEYS[@]}): " KEY_NUM
+        
+        # Проверка корректности ввода
+        if [[ ! "$KEY_NUM" =~ ^[0-9]+$ ]] || [ "$KEY_NUM" -lt 1 ] || [ "$KEY_NUM" -gt ${#WORKING_KEYS[@]} ]; then
+            echo -e "${RED}❌ Некорректный выбор!${NC}"
+            rm -f "$KEY_FILE"
+            exit 1
+        fi
+        
+        SSH_KEY_PATH="${WORKING_KEYS[$((KEY_NUM-1))]}"
+        KEY_NAME=$(basename "$SSH_KEY_PATH")
+        echo -e "${GREEN}✅ Выбран ключ: $KEY_NAME${NC}"
+    fi
 fi
 
 if [ ! -f "$SSH_KEY_PATH" ]; then
     echo -e "${RED}❌ SSH ключ не найден: $SSH_KEY_PATH${NC}"
+    rm -f "$KEY_FILE"
+    exit 1
+fi
+
+# Финальная проверка подключения
+echo ""
+echo "🔍 Проверяем SSH подключение..."
+if ssh -i "$SSH_KEY_PATH" -o ConnectTimeout=10 -o StrictHostKeyChecking=no "$YC_INSTANCE_USER@$YC_INSTANCE_IP" "echo '✅ SSH подключение работает'" 2>/dev/null; then
+    echo -e "${GREEN}✅ SSH ключ подтвержден: $SSH_KEY_PATH${NC}"
+else
+    echo -e "${RED}❌ SSH подключение не работает с этим ключом!${NC}"
+    echo "Проверьте:"
+    echo "  - Правильность IP адреса: $YC_INSTANCE_IP"
+    echo "  - Правильность пользователя: $YC_INSTANCE_USER"
+    echo "  - Доступность сервера"
     rm -f "$KEY_FILE"
     exit 1
 fi
