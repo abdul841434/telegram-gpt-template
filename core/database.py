@@ -343,6 +343,7 @@ async def delete_chat_data(chat_id: int):
 async def check_db():
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.cursor() as cursor:
+            # Таблица conversations - основная таблица с пользователями и чатами
             await cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS conversations (
@@ -351,6 +352,33 @@ async def check_db():
                     active_messages_count INTEGER,
                     subscription_verified INTEGER,
                     referral_code TEXT DEFAULT NULL
+                )
+                """
+            )
+            
+            # Таблица messages - история сообщений
+            await cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES conversations (id) ON DELETE CASCADE
+                )
+                """
+            )
+            
+            # Таблица chat_verifications - верификация подписки для чатов
+            await cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS chat_verifications (
+                    chat_id INTEGER PRIMARY KEY,
+                    verified_by_user_id INTEGER NOT NULL,
+                    verified_at TEXT NOT NULL,
+                    user_name TEXT,
+                    FOREIGN KEY (chat_id) REFERENCES conversations (id) ON DELETE CASCADE
                 )
                 """
             )
