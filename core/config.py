@@ -43,7 +43,7 @@ DEFAULT_PROMPT = os.environ.get("DEFAULT_PROMPT", "")
 TIMEZONE_OFFSET = int(os.environ.get("TIMEZONE_OFFSET", "3"))
 
 # База данных
-DATABASE_NAME = os.environ.get("DATABASE_NAME")
+DATABASE_NAME = os.environ.get("DATABASE_NAME", "users.db")
 MAX_CONTEXT = int(os.environ.get("MAX_CONTEXT") or "10")
 MAX_STORAGE = int(os.environ.get("MAX_STORAGE", "100"))  # Количество сообщений в БД
 

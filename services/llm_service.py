@@ -150,7 +150,6 @@ async def save_to_context_and_format(
             f"USER{chat_id} active_messages_count увеличен до {conversation.active_messages_count}"
         )
 
-    # remind_of_yourself обновляется только при отправке напоминания (в reminder_service.py)
     await conversation.update_in_db()
 
     return converted

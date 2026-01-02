@@ -156,8 +156,7 @@ TG_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 LLM_TOKEN=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 MODEL=google/gemini-2.0-flash-exp:free
 
-# Debug
-DEBUG=0
+# Admin
 ADMIN_CHAT=123456789
 
 # Database

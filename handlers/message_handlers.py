@@ -184,7 +184,6 @@ async def handle_text_message(message: types.Message):
                                 message.chat.id, generated_message.message_id
                             )
                         except TelegramForbiddenError:
-                            conversation.remind_of_yourself = 0
                             await conversation.update_in_db()
                             logger.warning(
                                 f"USER{message.chat.id} заблокировал чатбота"
@@ -286,7 +285,6 @@ async def handle_photo_message(message: types.Message):
             except TelegramForbiddenError:
                 conversation = Conversation(message.chat.id)
                 await conversation.get_from_db()
-                conversation.remind_of_yourself = 0
                 await conversation.update_in_db()
                 logger.warning(f"USER{message.chat.id} заблокировал чатбота")
                 return
@@ -372,7 +370,6 @@ async def handle_video_message(message: types.Message):
             except TelegramForbiddenError:
                 conversation = Conversation(message.chat.id)
                 await conversation.get_from_db()
-                conversation.remind_of_yourself = 0
                 await conversation.update_in_db()
                 logger.warning(f"USER{message.chat.id} заблокировал чатбота")
                 return
